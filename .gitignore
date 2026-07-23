@@ -23,6 +23,9 @@ data/
 .env.local
 *.secret
 
+# Local test files (may contain personal data)
+test/
+
 # OS
 .DS_Store
 Thumbs.db
