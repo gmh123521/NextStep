@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.nextstep</groupId>
+        <artifactId>nextstep-parent</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>nextstep-ai</artifactId>
+    <name>nextstep-ai</name>
+    <description>LLM 接入：智能咨询、画像生成、规划润色</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-framework</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-analysis</artifactId>
+        </dependency>
+
+        <!-- WebFlux 提供 WebClient（支持 SSE 流式响应） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <!-- PDF 文本提取 -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
+        <!-- Jackson 用于 LLM JSON 输出解析 -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

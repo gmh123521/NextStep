@@ -1,0 +1,28 @@
+# Build
+target/
+**/target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.settings/
+.classpath
+
+# Logs
+*.log
+logs/
+
+# Local data
+data/
+
+# Local secrets (never commit)
+.env
+.env.local
+*.secret
+
+# OS
+.DS_Store
+Thumbs.db

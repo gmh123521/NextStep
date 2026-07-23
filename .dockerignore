@@ -1,0 +1,35 @@
+# Build
+**/target/
+*.class
+*.jar
+!nextstep-api/target/nextstep-api.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs / runtime data
+*.log
+logs/
+data/
+
+# Frontend artifacts
+**/node_modules/
+**/dist/
+**/.vite/
+
+# Local secrets / OS junk
+.env
+.env.local
+*.secret
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docs / misc
+README.md
+test/
