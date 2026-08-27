@@ -16,7 +16,9 @@ import org.springframework.context.annotation.Import;
         "com.nextstep.analysis",
         "com.nextstep.planner",
         "com.nextstep.ai",
-        "com.nextstep.report"
+        "com.nextstep.report",
+        "com.nextstep.admin",
+        "com.nextstep.crawler"
 })
 public class NextStepApplication {
 

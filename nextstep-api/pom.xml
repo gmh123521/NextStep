@@ -50,6 +50,18 @@
             <groupId>com.nextstep</groupId>
             <artifactId>nextstep-planner</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-report</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-admin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-crawler</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
