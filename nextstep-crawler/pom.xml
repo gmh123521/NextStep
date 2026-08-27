@@ -18,5 +18,19 @@
             <groupId>com.nextstep</groupId>
             <artifactId>nextstep-framework</artifactId>
         </dependency>
+        <!-- 采集目标数据表所在模块（复用实体与 Mapper 写库） -->
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-data-school</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-data-gov</artifactId>
+        </dependency>
+        <!-- WebClient：非阻塞 HTTP 抓取（离线环境已缓存，复用 ai 模块同款依赖） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
     </dependencies>
 </project>

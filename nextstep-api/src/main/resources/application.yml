@@ -53,6 +53,15 @@ nextstep:
     max-tokens: 4096
     timeout-seconds: 300
     temperature: 0.7
+  crawler:
+    # 定时采集总开关，默认关闭；设为 true 才会注册定时任务并允许访问外网
+    enabled: ${CRAWLER_ENABLED:false}
+    cron: "0 0 3 * * ?"
+    rate-limit-ms: 1500
+    timeout-seconds: 15
+    max-items: 500
+    kaoyan-url: ${CRAWLER_KAOYAN_URL:https://yz.chsi.com.cn/zsml/pages/getMl.jsp}
+    gov-post-url: ${CRAWLER_GOV_POST_URL:http://www.scs.gov.cn/kl2023/kl/zwb/index.json}
 
 springdoc:
   api-docs:
