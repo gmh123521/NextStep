@@ -18,5 +18,23 @@
             <groupId>com.nextstep</groupId>
             <artifactId>nextstep-framework</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-user</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-analysis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-planner</artifactId>
+        </dependency>
+        <!-- OpenPDF（iText 5 的 LGPL 分叉，免费可商用）+ 内置 CJK 字体编码 -->
+        <dependency>
+            <groupId>com.github.librepdf</groupId>
+            <artifactId>openpdf</artifactId>
+            <version>1.3.30</version>
+        </dependency>
     </dependencies>
 </project>
