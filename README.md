@@ -40,6 +40,9 @@ NextStep 做的就是这件事：
 | 🗺️ **备考规划** | 按目标路径生成阶段性任务清单，支持导出 PDF 报告 |
 | 🏫 **数据中心** | 院校考研分数线、考公岗位竞争比、行业薪资等真实数据查询 |
 | ⚡ **并发摘要生成** | 简历入库时多条经历并行调 LLM 生成摘要，串行 ~60s → 并发 ~10s |
+| 🛠️ **后台管理** | 管理员用户、院校、岗位、薪资、采集任务与系统概览 |
+| 📥 **数据采集** | 研招网与国考岗位源手动/定时采集，外网定时任务默认关闭 |
+| 📄 **综合报告** | 聚合个人画像、路径分析与规划并导出中文 PDF |
 
 ---
 
@@ -231,16 +234,16 @@ nextstep/
 │       ├── ResumeController.java
 │       ├── TranscriptController.java
 │       └── UserExperienceController.java
-├── nextstep-crawler/         # 数据采集（待实现）
-├── nextstep-report/          # 报告导出（待实现）
-├── nextstep-admin/           # 后台管理（待实现）
+├── nextstep-crawler/         # 数据采集（后台手动触发 + 定时任务）
+├── nextstep-report/          # 综合决策报告 PDF 导出
+├── nextstep-admin/           # 后台用户、数据与采集管理
 ├── nextstep-api/             # 启动聚合入口（NextStepApplication）
 │   └── resources/application.yml
 ├── nextstep-web/             # Vue 3 前端
 │   ├── src/views/            #   Dashboard / Profile / Plan / School / Gov / Job
 │   ├── src/components/       #   ChatPanel / ResumeUploader / RadarChart
 │   └── src/api/              #   各模块 HTTP 封装
-├── sql/                      # Flyway 迁移脚本（01~08）
+├── sql/                      # Flyway 迁移脚本（01~10）
 ├── docker-compose.yml        # MySQL + Redis + 后端一键部署
 ├── Dockerfile                # 后端镜像（eclipse-temurin:23-jre-alpine）
 └── nginx/nextstep.conf       # 前端反向代理配置
