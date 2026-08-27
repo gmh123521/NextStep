@@ -23,6 +23,9 @@ data/
 .env.local
 *.secret
 
+# Claude Code local files (memory, settings)
+.claude/
+
 # Local test files (may contain personal data)
 test/
 
