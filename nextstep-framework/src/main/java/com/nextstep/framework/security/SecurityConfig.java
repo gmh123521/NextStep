@@ -41,6 +41,7 @@ public class SecurityConfig {
                                 "/doc.html", "/webjars/**", "/v3/api-docs/**", "/swagger-ui/**",
                                 "/favicon.ico", "/error"
                         ).permitAll()
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(eh -> eh

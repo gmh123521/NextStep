@@ -8,7 +8,7 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
-    @Select("SELECT id, username, password, nickname, email, phone, status, created_at, updated_at " +
+    @Select("SELECT id, username, password, nickname, email, phone, status, role, created_at, updated_at " +
             "FROM ns_user WHERE username = #{username} LIMIT 1")
     User selectByUsernameWithPassword(String username);
 }

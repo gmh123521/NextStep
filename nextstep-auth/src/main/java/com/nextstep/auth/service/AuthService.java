@@ -36,6 +36,7 @@ public class AuthService {
         u.setEmail(req.getEmail());
         u.setPhone(req.getPhone());
         u.setStatus(0);
+        u.setRole("USER");
         u.setCreatedAt(LocalDateTime.now());
         u.setUpdatedAt(LocalDateTime.now());
         userMapper.insert(u);
@@ -50,7 +51,7 @@ public class AuthService {
         if (u.getStatus() != null && u.getStatus() == 1) {
             throw new BizException(ResultCode.FORBIDDEN, "账号已禁用");
         }
-        String token = jwtTokenProvider.generate(u.getId(), u.getUsername());
+        String token = jwtTokenProvider.generate(u.getId(), u.getUsername(), u.getRole());
         return new LoginResponse(token, jwtTokenProvider.getExpireMillis(), u.getUsername());
     }
 }
