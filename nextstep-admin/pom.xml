@@ -18,5 +18,21 @@
             <groupId>com.nextstep</groupId>
             <artifactId>nextstep-framework</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-auth</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-data-school</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-data-gov</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nextstep</groupId>
+            <artifactId>nextstep-data-job</artifactId>
+        </dependency>
     </dependencies>
 </project>
