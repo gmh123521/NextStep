@@ -95,7 +95,8 @@ async function exportPdf() {
   }
 }
 
-async function onSwitchPath(v: string) {
+async function onSwitchPath(v: string | number | boolean | undefined) {
+  if (typeof v !== 'string') return
   path.value = v
   router.replace({ query: { path: v } })
   recommendedMonths.value = null
@@ -287,4 +288,3 @@ onMounted(load)
   to   { transform: rotate(360deg); }
 }
 </style>
-

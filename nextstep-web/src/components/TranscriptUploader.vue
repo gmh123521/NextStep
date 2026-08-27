@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { transcriptApi, type TranscriptExtractResult, type CourseItem } from '@/api/transcript'
 import { compressImageIfNeeded } from '@/utils/imageCompress'
 
@@ -90,7 +90,7 @@ function open() {
 
 defineExpose({ open })
 
-async function onFileChange(file: { raw: File; name: string }) {
+async function onFileChange(file: UploadFile) {
   if (!file.raw) return
   const lower = file.name.toLowerCase()
   if (!lower.endsWith('.pdf') && !lower.endsWith('.png') &&

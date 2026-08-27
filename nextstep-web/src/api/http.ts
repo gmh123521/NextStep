@@ -36,7 +36,7 @@ http.interceptors.request.use(cfg => {
 http.interceptors.response.use(
   resp => {
     const body = resp.data as R<unknown>
-    if (body.code === 200) return body
+    if (body.code === 200) return body as any
     if (body.code === 4010) {
       clearToken()
       ElMessage.warning('登录已过期，请重新登录')

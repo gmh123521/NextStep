@@ -39,7 +39,9 @@ const degreeOptions = [
 ]
 
 // 语种 + 各自的等级体系
-const languageOptions = [
+type LanguageLevel = { v: string; l: string; max?: number; hint?: string }
+type LanguageOption = { code: string; label: string; levels: LanguageLevel[] }
+const languageOptions: LanguageOption[] = [
   {
     code: 'EN',
     label: '英语',

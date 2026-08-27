@@ -81,7 +81,8 @@ function scrollToBottom() {
   })
 }
 
-function onEnter(e: KeyboardEvent) {
+function onEnter(e: Event | KeyboardEvent) {
+  if (!(e instanceof KeyboardEvent)) return
   if (e.shiftKey) return
   e.preventDefault()
   send()

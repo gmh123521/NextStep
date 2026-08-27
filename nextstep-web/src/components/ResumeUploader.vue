@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { resumeApi, type ResumeExtractResult, type ResumeExperienceItem } from '@/api/resume'
 
 const emit = defineEmits<{ (e: 'applied'): void }>()
@@ -98,7 +98,7 @@ function open() {
 
 defineExpose({ open })
 
-async function onFileChange(file: { raw: File; name: string }) {
+async function onFileChange(file: UploadFile) {
   if (!file.raw) return
   if (!file.name.toLowerCase().endsWith('.pdf')) {
     ElMessage.warning('仅支持 PDF 格式')
