@@ -14,6 +14,9 @@ const menuItems = [
   { path: '/job',       label: '就业行情', icon: 'i-ep-briefcase' }
 ]
 
+const adminMenuItem = { path: '/admin', label: '后台管理', icon: 'i-ep-setting' }
+const visibleMenuItems = computed(() => userStore.isAdmin ? [...menuItems, adminMenuItem] : menuItems)
+
 const drawerOpen = ref(false)
 const isMobile = ref(window.innerWidth < 768)
 window.addEventListener('resize', () => { isMobile.value = window.innerWidth < 768 })
@@ -59,7 +62,7 @@ function handleLogout() {
     <div class="layout-body">
       <aside v-if="!isMobile" class="layout-aside">
         <div
-          v-for="m in menuItems"
+          v-for="m in visibleMenuItems"
           :key="m.path"
           class="menu-item"
           :class="{ 'menu-item-active': route.path === m.path }"
@@ -73,7 +76,7 @@ function handleLogout() {
       <el-drawer v-model="drawerOpen" direction="ltr" size="220px" :with-header="false">
         <div class="drawer-menu">
           <div
-            v-for="m in menuItems"
+            v-for="m in visibleMenuItems"
             :key="m.path"
             class="menu-item"
             :class="{ 'menu-item-active': route.path === m.path }"
