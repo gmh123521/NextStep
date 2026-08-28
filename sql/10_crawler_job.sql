@@ -1,8 +1,7 @@
 -- 采集中心：爬虫任务运行记录
 USE `nextstep`;
 
-DROP TABLE IF EXISTS `ns_crawler_job`;
-CREATE TABLE `ns_crawler_job` (
+CREATE TABLE IF NOT EXISTS `ns_crawler_job` (
   `id`          BIGINT       NOT NULL AUTO_INCREMENT,
   `source`      VARCHAR(32)  NOT NULL              COMMENT '数据源：KAOYAN 研招网 / GOV_POST 考公岗位',
   `trigger_by`  VARCHAR(16)  NOT NULL DEFAULT 'SCHEDULE' COMMENT 'SCHEDULE 定时 / MANUAL 手动',
