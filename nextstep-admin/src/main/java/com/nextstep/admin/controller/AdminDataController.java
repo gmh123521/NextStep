@@ -99,6 +99,17 @@ public class AdminDataController {
 
     // ── 薪资统计 ──────────────────────────────────────────────────────────────
 
+    @Operation(summary = "薪资统计分页")
+    @GetMapping("/salary-stats")
+    public R<PageResult<SalaryStat>> pageSalaryStat(
+            @RequestParam(defaultValue = "1") int pageNum,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) Long positionId,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) Integer statYear) {
+        return R.ok(adminDataService.pageSalaryStat(pageNum, pageSize, positionId, city, statYear));
+    }
+
     @Operation(summary = "新增/更新薪资统计")
     @PostMapping("/salary-stats")
     public R<Long> saveSalaryStat(@RequestBody SalaryStat stat) {

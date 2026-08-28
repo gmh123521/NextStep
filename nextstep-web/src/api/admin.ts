@@ -61,6 +61,20 @@ export interface JobPositionRecord {
   description?: string
 }
 
+export interface SalaryStatRecord {
+  id?: number
+  positionId: number
+  city: string
+  experience: string
+  degree: string
+  minSalary?: number
+  maxSalary?: number
+  medianSalary?: number
+  sampleSize?: number
+  dataSource?: string
+  statYear: number
+}
+
 export interface CrawlerJob {
   id: number
   source: string
@@ -73,12 +87,6 @@ export interface CrawlerJob {
   startedAt?: string
   finishedAt?: string
 }
-
-const pageParams = (pageNum: number, pageSize: number, extra: Record<string, unknown> = {}) => ({
-  pageNum,
-  pageSize,
-  ...extra
-})
 
 export const adminApi = {
   overview: () => request<AdminStats>({ url: '/admin/stats/overview' }),
@@ -100,6 +108,10 @@ export const adminApi = {
     request<PageResult<JobPositionRecord>>({ url: '/admin/data/job-positions', params }),
   saveJobPosition: (data: JobPositionRecord) => request<number>({ url: '/admin/data/job-positions', method: 'POST', data }),
   deleteJobPosition: (id: number) => request<void>({ url: `/admin/data/job-positions/${id}`, method: 'DELETE' }),
+  salaryStats: (params: { pageNum: number; pageSize: number; positionId?: number; city?: string; statYear?: number }) =>
+    request<PageResult<SalaryStatRecord>>({ url: '/admin/data/salary-stats', params }),
+  saveSalaryStat: (data: SalaryStatRecord) => request<number>({ url: '/admin/data/salary-stats', method: 'POST', data }),
+  deleteSalaryStat: (id: number) => request<void>({ url: `/admin/data/salary-stats/${id}`, method: 'DELETE' }),
   sources: () => request<string[]>({ url: '/admin/crawler/sources' }),
   runCrawler: (source: string) => request<CrawlerJob>({ url: `/admin/crawler/run/${source}`, method: 'POST' }),
   crawlerJobs: (params: { pageNum: number; pageSize: number; source?: string }) =>

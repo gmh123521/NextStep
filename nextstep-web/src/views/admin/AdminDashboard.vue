@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { adminApi, type AdminStats, type AdminUser, type CrawlerJob, type GovPostRecord, type JobPositionRecord, type SchoolRecord } from '@/api/admin'
+import { adminApi, type AdminStats, type AdminUser, type CrawlerJob, type GovPostRecord, type JobPositionRecord, type SalaryStatRecord, type SchoolRecord } from '@/api/admin'
 import { useUserStore } from '@/stores/user'
 
 const userStore = useUserStore()
@@ -18,7 +18,8 @@ const crawlerTotal = ref(0)
 const crawlerSource = ref('')
 const crawlerPage = ref(1)
 const crawlerPageSize = ref(10)
-const dataType = ref<'schools' | 'gov-posts' | 'job-positions'>('schools')
+type DataType = 'schools' | 'gov-posts' | 'job-positions' | 'salary-stats'
+const dataType = ref<DataType>('schools')
 const dataLoading = ref(false)
 const schools = ref<SchoolRecord[]>([])
 const schoolTotal = ref(0)
@@ -26,11 +27,25 @@ const govPosts = ref<GovPostRecord[]>([])
 const govTotal = ref(0)
 const jobPositions = ref<JobPositionRecord[]>([])
 const jobTotal = ref(0)
+const salaryStats = ref<SalaryStatRecord[]>([])
+const salaryTotal = ref(0)
+const jobOptions = ref<JobPositionRecord[]>([])
+const salaryFilters = reactive({ positionId: undefined as number | undefined, city: '', statYear: undefined as number | undefined })
 const dataPage = ref(1)
 const dataPageSize = ref(10)
 const dataKeyword = ref('')
-const dataRows = computed<any[]>(() => dataType.value === 'schools' ? schools.value : dataType.value === 'gov-posts' ? govPosts.value : jobPositions.value)
-const dataTotal = computed(() => dataType.value === 'schools' ? schoolTotal.value : dataType.value === 'gov-posts' ? govTotal.value : jobTotal.value)
+const dataRows = computed<any[]>(() => {
+  if (dataType.value === 'schools') return schools.value
+  if (dataType.value === 'gov-posts') return govPosts.value
+  if (dataType.value === 'job-positions') return jobPositions.value
+  return salaryStats.value
+})
+const dataTotal = computed(() => {
+  if (dataType.value === 'schools') return schoolTotal.value
+  if (dataType.value === 'gov-posts') return govTotal.value
+  if (dataType.value === 'job-positions') return jobTotal.value
+  return salaryTotal.value
+})
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const dialogType = ref(dataType.value)
@@ -107,18 +122,37 @@ async function loadData() {
     } else if (dataType.value === 'gov-posts') {
       const result = await adminApi.govPosts({ pageNum: dataPage.value, pageSize: dataPageSize.value, keyword: dataKeyword.value || undefined })
       govPosts.value = result.records; govTotal.value = result.total
-    } else {
+    } else if (dataType.value === 'job-positions') {
       const result = await adminApi.jobPositions({ pageNum: dataPage.value, pageSize: dataPageSize.value, keyword: dataKeyword.value || undefined })
       jobPositions.value = result.records; jobTotal.value = result.total
+    } else {
+      const result = await adminApi.salaryStats({ pageNum: dataPage.value, pageSize: dataPageSize.value, ...salaryFilters })
+      salaryStats.value = result.records; salaryTotal.value = result.total
     }
   } finally { dataLoading.value = false }
 }
 
-function resetForm(type: typeof dataType.value, row?: any) {
+async function loadJobOptions() {
+  if (jobOptions.value.length) return
+  const result = await adminApi.jobPositions({ pageNum: 1, pageSize: 200 })
+  jobOptions.value = result.records
+}
+
+function positionName(positionId: number) {
+  return jobOptions.value.find(item => item.id === positionId)?.name || `岗位 #${positionId}`
+}
+
+function resetForm(type: DataType, row?: any) {
   dialogType.value = type
   editingId.value = row?.id
   Object.keys(form).forEach(key => delete form[key])
-  Object.assign(form, row ? { ...row } : type === 'schools' ? { name: '', province: '', city: '', level: '', type: '' } : type === 'gov-posts' ? { year: new Date().getFullYear(), deptName: '', postName: '', province: '', examType: '' } : { name: '', category: '', description: '' })
+  Object.assign(form, row ? { ...row } : type === 'schools'
+    ? { name: '', province: '', city: '', level: '', type: '' }
+    : type === 'gov-posts'
+      ? { year: new Date().getFullYear(), deptName: '', postName: '', province: '', examType: '' }
+      : type === 'job-positions'
+        ? { name: '', category: '', description: '' }
+        : { positionId: undefined, city: '', experience: 'FRESH', degree: 'BACHELOR', minSalary: undefined, maxSalary: undefined, medianSalary: undefined, sampleSize: undefined, dataSource: '', statYear: new Date().getFullYear() })
   dialogTitle.value = row ? '编辑数据' : '新增数据'
   dialogVisible.value = true
 }
@@ -126,24 +160,30 @@ function resetForm(type: typeof dataType.value, row?: any) {
 async function saveData() {
   if (dialogType.value === 'schools') await adminApi.saveSchool({ ...form, id: editingId.value } as SchoolRecord)
   else if (dialogType.value === 'gov-posts') await adminApi.saveGovPost({ ...form, id: editingId.value } as GovPostRecord)
-  else await adminApi.saveJobPosition({ ...form, id: editingId.value } as JobPositionRecord)
+  else if (dialogType.value === 'job-positions') await adminApi.saveJobPosition({ ...form, id: editingId.value } as JobPositionRecord)
+  else await adminApi.saveSalaryStat({ ...form, id: editingId.value } as SalaryStatRecord)
   dialogVisible.value = false
   ElMessage.success('保存成功')
   await loadData()
 }
 
-async function removeData(type: typeof dataType.value, id: number) {
+async function removeData(type: DataType, id: number) {
   try {
     await ElMessageBox.confirm('删除后不可恢复，确认继续吗？', '操作确认')
     if (type === 'schools') await adminApi.deleteSchool(id)
     else if (type === 'gov-posts') await adminApi.deleteGovPost(id)
-    else await adminApi.deleteJobPosition(id)
+    else if (type === 'job-positions') await adminApi.deleteJobPosition(id)
+    else await adminApi.deleteSalaryStat(id)
     ElMessage.success('删除成功')
     await loadData()
   } catch (error) { if (error !== 'cancel' && error !== 'close') throw error }
 }
 
-watch(dataType, () => { dataPage.value = 1; loadData() })
+watch(dataType, async (type) => {
+  dataPage.value = 1
+  if (type === 'salary-stats') await loadJobOptions()
+  await loadData()
+})
 watch(activeTab, async (tab) => {
   if (tab === 'overview' && !stats.value) await loadOverview()
   if (tab === 'users' && !users.value.length) await loadUsers()
@@ -196,11 +236,17 @@ onMounted(loadOverview)
         </el-tab-pane>
 
         <el-tab-pane label="数据维护" name="data">
-          <div class="flex flex-wrap gap-2 mb-4"><el-select v-model="dataType" class="w-36"><el-option label="院校" value="schools" /><el-option label="考公岗位" value="gov-posts" /><el-option label="就业岗位" value="job-positions" /></el-select><el-input v-model="dataKeyword" placeholder="关键词" clearable class="w-52" @keyup.enter="dataPage = 1; loadData()" /><el-button type="primary" @click="dataPage = 1; loadData()">查询</el-button><el-button @click="resetForm(dataType)">新增</el-button></div>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <el-select v-model="dataType" class="w-36"><el-option label="院校" value="schools" /><el-option label="考公岗位" value="gov-posts" /><el-option label="就业岗位" value="job-positions" /><el-option label="薪资统计" value="salary-stats" /></el-select>
+            <template v-if="dataType === 'salary-stats'"><el-select v-model="salaryFilters.positionId" placeholder="岗位" clearable filterable class="w-48"><el-option v-for="item in jobOptions.filter(item => item.id != null)" :key="item.id" :label="item.name" :value="item.id!" /></el-select><el-input v-model="salaryFilters.city" placeholder="城市" clearable class="w-32" /><el-input-number v-model="salaryFilters.statYear" :min="2000" :max="2100" placeholder="年份" /></template>
+            <el-input v-else v-model="dataKeyword" placeholder="关键词" clearable class="w-52" @keyup.enter="dataPage = 1; loadData()" />
+            <el-button type="primary" @click="dataPage = 1; loadData()">查询</el-button><el-button @click="resetForm(dataType)">新增</el-button>
+          </div>
           <el-table v-loading="dataLoading" :data="dataRows" stripe>
             <template v-if="dataType === 'schools'"><el-table-column prop="name" label="院校名称" min-width="180" /><el-table-column prop="province" label="省份" width="100" /><el-table-column prop="city" label="城市" width="100" /><el-table-column prop="level" label="层次" width="100" /><el-table-column label="操作" width="140"><template #default="{ row }"><el-button link type="primary" @click="resetForm('schools', row)">编辑</el-button><el-button link type="danger" @click="removeData('schools', row.id)">删除</el-button></template></el-table-column></template>
             <template v-else-if="dataType === 'gov-posts'"><el-table-column prop="year" label="年份" width="80" /><el-table-column prop="deptName" label="部门" min-width="180" /><el-table-column prop="postName" label="岗位" min-width="180" /><el-table-column prop="province" label="省份" width="100" /><el-table-column label="操作" width="140"><template #default="{ row }"><el-button link type="primary" @click="resetForm('gov-posts', row)">编辑</el-button><el-button link type="danger" @click="removeData('gov-posts', row.id)">删除</el-button></template></el-table-column></template>
-            <template v-else><el-table-column prop="name" label="岗位名称" min-width="180" /><el-table-column prop="category" label="分类" width="130" /><el-table-column prop="description" label="描述" min-width="240" show-overflow-tooltip /><el-table-column label="操作" width="140"><template #default="{ row }"><el-button link type="primary" @click="resetForm('job-positions', row)">编辑</el-button><el-button link type="danger" @click="removeData('job-positions', row.id)">删除</el-button></template></el-table-column></template>
+            <template v-else-if="dataType === 'job-positions'"><el-table-column prop="name" label="岗位名称" min-width="180" /><el-table-column prop="category" label="分类" width="130" /><el-table-column prop="description" label="描述" min-width="240" show-overflow-tooltip /><el-table-column label="操作" width="140"><template #default="{ row }"><el-button link type="primary" @click="resetForm('job-positions', row)">编辑</el-button><el-button link type="danger" @click="removeData('job-positions', row.id)">删除</el-button></template></el-table-column></template>
+            <template v-else><el-table-column label="岗位" min-width="180"><template #default="{ row }">{{ positionName(row.positionId) }}</template></el-table-column><el-table-column prop="city" label="城市" width="100" /><el-table-column prop="experience" label="经验" width="100" /><el-table-column prop="degree" label="学历" width="110" /><el-table-column label="薪资范围" width="140"><template #default="{ row }">{{ row.minSalary ?? '-' }} - {{ row.maxSalary ?? '-' }}</template></el-table-column><el-table-column prop="medianSalary" label="中位薪资" width="110" /><el-table-column prop="statYear" label="年份" width="80" /><el-table-column label="操作" width="140"><template #default="{ row }"><el-button link type="primary" @click="resetForm('salary-stats', row)">编辑</el-button><el-button link type="danger" @click="removeData('salary-stats', row.id)">删除</el-button></template></el-table-column></template>
           </el-table>
           <el-pagination v-model:current-page="dataPage" v-model:page-size="dataPageSize" class="mt-4 justify-end" layout="total, sizes, prev, pager, next" :total="dataTotal" @current-change="loadData" @size-change="dataPage = 1; loadData" />
         </el-tab-pane>
@@ -217,7 +263,8 @@ onMounted(loadOverview)
       <el-form label-width="90px">
         <template v-if="dialogType === 'schools'"><el-form-item label="院校名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="省份"><el-input v-model="form.province" /></el-form-item><el-form-item label="城市"><el-input v-model="form.city" /></el-form-item><el-form-item label="层次"><el-input v-model="form.level" /></el-form-item><el-form-item label="类型"><el-input v-model="form.type" /></el-form-item></template>
         <template v-else-if="dialogType === 'gov-posts'"><el-form-item label="年份"><el-input-number v-model="form.year" :min="2000" :max="2100" /></el-form-item><el-form-item label="部门"><el-input v-model="form.deptName" /></el-form-item><el-form-item label="岗位名称"><el-input v-model="form.postName" /></el-form-item><el-form-item label="省份"><el-input v-model="form.province" /></el-form-item><el-form-item label="考试类型"><el-input v-model="form.examType" /></el-form-item></template>
-        <template v-else><el-form-item label="岗位名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="分类"><el-input v-model="form.category" /></el-form-item><el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="3" /></el-form-item></template>
+        <template v-else-if="dialogType === 'job-positions'"><el-form-item label="岗位名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="分类"><el-input v-model="form.category" /></el-form-item><el-form-item label="描述"><el-input v-model="form.description" type="textarea" :rows="3" /></el-form-item></template>
+        <template v-else><el-form-item label="岗位"><el-select v-model="form.positionId" filterable class="w-full"><el-option v-for="item in jobOptions.filter(item => item.id != null)" :key="item.id" :label="item.name" :value="item.id!" /></el-select></el-form-item><el-form-item label="城市"><el-input v-model="form.city" /></el-form-item><el-form-item label="经验"><el-input v-model="form.experience" /></el-form-item><el-form-item label="学历"><el-input v-model="form.degree" /></el-form-item><el-form-item label="最低薪资"><el-input-number v-model="form.minSalary" :min="0" /></el-form-item><el-form-item label="最高薪资"><el-input-number v-model="form.maxSalary" :min="0" /></el-form-item><el-form-item label="中位薪资"><el-input-number v-model="form.medianSalary" :min="0" /></el-form-item><el-form-item label="样本量"><el-input-number v-model="form.sampleSize" :min="0" /></el-form-item><el-form-item label="数据来源"><el-input v-model="form.dataSource" /></el-form-item><el-form-item label="统计年份"><el-input-number v-model="form.statYear" :min="2000" :max="2100" /></el-form-item></template>
       </el-form>
       <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" @click="saveData">保存</el-button></template>
     </el-dialog>
