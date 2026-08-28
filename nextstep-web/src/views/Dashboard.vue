@@ -2,6 +2,7 @@
 import { profileApi, type UserProfile } from '@/api/profile'
 import { analysisApi, aiApi, type AnalysisResult } from '@/api/analysis'
 import { streamExplain, type ExplainController } from '@/api/aiStream'
+import { reportApi } from '@/api/report'
 import { ElMessage } from 'element-plus'
 import RadarChart from '@/components/RadarChart.vue'
 import ChatPanel from '@/components/ChatPanel.vue'
@@ -18,6 +19,7 @@ const profile = ref<UserProfile | null>(null)
 const result = ref<AnalysisResult | null>(null)
 const loading = ref(false)
 const scoring = ref(false)
+const exporting = ref(false)
 
 const explanation = ref('')
 const explaining = ref(false)
@@ -51,6 +53,18 @@ async function loadCachedExplain() {
     const cached = await aiApi.explainCache()
     if (cached) explanation.value = cached
   } catch {}
+}
+
+async function exportReport() {
+  exporting.value = true
+  try {
+    await reportApi.exportPdf()
+    ElMessage.success('综合报告已下载')
+  } catch (e: any) {
+    ElMessage.error(e?.message || '综合报告导出失败')
+  } finally {
+    exporting.value = false
+  }
 }
 
 function startExplain() {
@@ -104,7 +118,10 @@ onMounted(async () => {
             <span v-if="!profile" class="ml-2 text-gray-400">— 还没创建画像，先去填一下</span>
           </p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap justify-end gap-2">
+          <el-button v-if="profile" :loading="exporting" @click="exportReport">
+            <i class="i-ep-document mr-1" />导出综合报告
+          </el-button>
           <el-button v-if="profile" plain @click="chatPanel?.open()">
             🗣 AI 帮我补画像
           </el-button>
