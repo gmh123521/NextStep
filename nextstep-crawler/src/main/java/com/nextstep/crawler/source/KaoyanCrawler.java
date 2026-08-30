@@ -2,6 +2,7 @@ package com.nextstep.crawler.source;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nextstep.common.exception.BizException;
 import com.nextstep.crawler.config.CrawlerProperties;
 import com.nextstep.crawler.dto.CrawlResult;
 import com.nextstep.crawler.fetch.HttpFetcher;
@@ -44,23 +45,20 @@ public class KaoyanCrawler implements SourceCrawler {
         CrawlResult result = new CrawlResult();
         String body = fetcher.get(props.getKaoyanUrl());
         if (body == null || body.isBlank()) {
-            log.warn("[crawler:KAOYAN] 响应为空");
-            return result;
+            throw new BizException("研招院校数据响应为空");
         }
 
         JsonNode root;
         try {
             root = objectMapper.readTree(body);
         } catch (Exception e) {
-            log.warn("[crawler:KAOYAN] 响应非 JSON，跳过: {}", e.getMessage());
-            return result;
+            throw new BizException("研招院校数据响应格式无效");
         }
 
         // 兼容常见结构：顶层数组，或 {data:[...]} / {ssdm:[...]}
         JsonNode list = firstArray(root, "data", "list", "yxList", "ssList");
         if (list == null || !list.isArray()) {
-            log.warn("[crawler:KAOYAN] 未找到院校数组节点");
-            return result;
+            throw new BizException("研招院校数据缺少列表节点");
         }
 
         for (JsonNode node : list) {
@@ -109,11 +107,15 @@ public class KaoyanCrawler implements SourceCrawler {
             JsonNode n = root.get(k);
             if (n != null && n.isArray()) return n;
         }
-        // 递归找第一个数组子节点
+        // 兼容 data.rows / data.schools 等嵌套结构
         Iterator<JsonNode> it = root.elements();
         while (it.hasNext()) {
             JsonNode child = it.next();
             if (child.isArray()) return child;
+            if (child.isObject()) {
+                JsonNode nested = firstArray(child, keys);
+                if (nested != null) return nested;
+            }
         }
         return null;
     }

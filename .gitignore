@@ -26,8 +26,8 @@ data/
 # Claude Code local files (memory, settings)
 .claude/
 
-# Local test files (may contain personal data)
-test/
+# Local root test files (may contain personal data)
+/test/
 
 # OS
 .DS_Store

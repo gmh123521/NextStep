@@ -2,6 +2,7 @@ package com.nextstep.crawler.source;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nextstep.common.exception.BizException;
 import com.nextstep.crawler.config.CrawlerProperties;
 import com.nextstep.crawler.dto.CrawlResult;
 import com.nextstep.crawler.fetch.HttpFetcher;
@@ -44,22 +45,19 @@ public class GovPostCrawler implements SourceCrawler {
         CrawlResult result = new CrawlResult();
         String body = fetcher.get(props.getGovPostUrl());
         if (body == null || body.isBlank()) {
-            log.warn("[crawler:GOV_POST] 响应为空");
-            return result;
+            throw new BizException("国考岗位数据响应为空");
         }
 
         JsonNode root;
         try {
             root = objectMapper.readTree(body);
         } catch (Exception e) {
-            log.warn("[crawler:GOV_POST] 响应非 JSON，跳过: {}", e.getMessage());
-            return result;
+            throw new BizException("国考岗位数据响应格式无效");
         }
 
         JsonNode list = firstArray(root, "data", "list", "rows", "positions");
         if (list == null || !list.isArray()) {
-            log.warn("[crawler:GOV_POST] 未找到职位数组节点");
-            return result;
+            throw new BizException("国考岗位数据缺少列表节点");
         }
 
         for (JsonNode node : list) {
@@ -108,6 +106,10 @@ public class GovPostCrawler implements SourceCrawler {
         while (it.hasNext()) {
             JsonNode child = it.next();
             if (child.isArray()) return child;
+            if (child.isObject()) {
+                JsonNode nested = firstArray(child, keys);
+                if (nested != null) return nested;
+            }
         }
         return null;
     }

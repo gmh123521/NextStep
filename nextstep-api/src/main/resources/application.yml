@@ -54,7 +54,7 @@ nextstep:
     timeout-seconds: 300
     temperature: 0.7
   crawler:
-    # 定时采集总开关，默认关闭；设为 true 才会注册定时任务并允许访问外网
+    # 定时采集总开关，默认关闭；后台手动采集不受此开关影响
     enabled: ${CRAWLER_ENABLED:false}
     cron: "0 0 3 * * ?"
     rate-limit-ms: 1500
