@@ -47,6 +47,7 @@ public class ResumeExtractService {
     private final ExperienceSummaryService summaryService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ResumeExperienceDeduplicator deduplicator = new ResumeExperienceDeduplicator();
+    private final ResumeResultValidator resultValidator = new ResumeResultValidator();
 
     private static final int MAX_PDF_BYTES = 5 * 1024 * 1024;
     private static final int MAX_RESUME_CHARS = 8000;
@@ -126,6 +127,8 @@ public class ResumeExtractService {
     /** 用户确认后入库：覆盖画像核心字段 + 追加经历（同类型同标题去重） */
     @Transactional
     public ResumeApplyResult apply(Long userId, ResumeExtractResult r) {
+        resultValidator.validateAndNormalize(r);
+
         // 画像：复用已有的 upsert 逻辑（只覆盖非空字段）
         UserProfileRequest req = new UserProfileRequest();
         req.setCurrentSchool(r.getCurrentSchool());

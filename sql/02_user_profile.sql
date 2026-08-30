@@ -13,7 +13,7 @@ CREATE TABLE `ns_user_profile` (
   `major_category`        VARCHAR(32)           DEFAULT NULL    COMMENT '学科门类',
   `degree_type`           VARCHAR(16)           DEFAULT NULL    COMMENT '学历：BACHELOR/MASTER/DOCTOR',
   `grade_year`            TINYINT               DEFAULT NULL    COMMENT '年级：1-4 本科 / 5-7 硕博',
-  `gpa`                   DECIMAL(4,2)          DEFAULT NULL    COMMENT '绩点 0-5',
+  `gpa`                   DECIMAL(5,2)          DEFAULT NULL    COMMENT '绩点 0-100',
   `gpa_scale`             TINYINT               DEFAULT 4       COMMENT 'GPA 满分制：4 / 5 / 100',
   `class_rank_pct`        DECIMAL(5,2)          DEFAULT NULL    COMMENT '班级排名百分位 0-100',
 

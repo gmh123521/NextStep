@@ -243,7 +243,7 @@ nextstep/
 │   ├── src/views/            #   Dashboard / Profile / Plan / School / Gov / Job
 │   ├── src/components/       #   ChatPanel / ResumeUploader / RadarChart
 │   └── src/api/              #   各模块 HTTP 封装
-├── sql/                      # Flyway 迁移脚本（01~10）
+├── sql/                      # 数据库初始化与增量脚本（01~11）
 ├── docker-compose.yml        # MySQL + Redis + 后端一键部署
 ├── Dockerfile                # 后端镜像（eclipse-temurin:23-jre-alpine）
 └── nginx/nextstep.conf       # 前端反向代理配置
