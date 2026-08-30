@@ -18,7 +18,7 @@ CREATE TABLE `ns_user_profile` (
   `class_rank_pct`        DECIMAL(5,2)          DEFAULT NULL    COMMENT '班级排名百分位 0-100',
 
   -- 能力素质
-  `english_level`         VARCHAR(16)           DEFAULT NULL    COMMENT 'CET4/CET6/IELTS/TOEFL/NONE',
+  `english_level`         VARCHAR(16)           DEFAULT NULL    COMMENT 'CET4/CET6/TEM4/TEM8/IELTS/TOEFL/JLPT/TOPIK/OTHER/NONE',
   `english_score`         INT                   DEFAULT NULL    COMMENT '英语分数',
   -- 注意：has_research / has_internship / has_competition / has_paper
   --      已改为派生字段（从 ns_user_experience 聚合），不再存数据库
@@ -39,7 +39,7 @@ CREATE TABLE `ns_user_profile` (
   `weaknesses`            VARCHAR(512)          DEFAULT NULL    COMMENT '劣势',
 
   -- 状态
-  `current_status`        VARCHAR(16)           DEFAULT 'IN_SCHOOL' COMMENT 'IN_SCHOOL/GRADUATED/EMPLOYED/PREPARING',
+  `current_status`        VARCHAR(16)           DEFAULT 'IN_SCHOOL' COMMENT 'IN_SCHOOL/PREPARING/JOB_HUNTING/GRADUATED/EMPLOYED',
 
   `created_at`            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

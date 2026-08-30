@@ -27,6 +27,7 @@ public class UserProfileService {
 
     private final UserProfileMapper userProfileMapper;
     private final UserExperienceTypeMapper experienceTypeMapper;
+    private final UserProfileValidator validator = new UserProfileValidator();
 
     /** 评分用到的核心字段（基础必填项） */
     private static final List<String> CORE_FIELDS = Arrays.asList(
@@ -93,10 +94,12 @@ public class UserProfileService {
 
     @Transactional
     public UserProfile upsert(Long userId, UserProfileRequest req) {
+        validator.normalizeRequest(req);
         UserProfile existing = getRaw(userId);
         UserProfile target = existing == null ? new UserProfile() : existing;
         copyNonNull(req, target);
         target.setUserId(userId);
+        validator.validateProfile(target);
         // upsert 时不再写 profileCompleteness：它是派生字段，由 get() 时实时算
         if (existing == null) {
             userProfileMapper.insert(target);
