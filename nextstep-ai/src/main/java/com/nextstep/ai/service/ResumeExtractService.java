@@ -23,8 +23,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -44,6 +46,7 @@ public class ResumeExtractService {
     private final UserExperienceMapper experienceMapper;
     private final ExperienceSummaryService summaryService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ResumeExperienceDeduplicator deduplicator = new ResumeExperienceDeduplicator();
 
     private static final int MAX_PDF_BYTES = 5 * 1024 * 1024;
     private static final int MAX_RESUME_CHARS = 8000;
@@ -139,32 +142,27 @@ public class ResumeExtractService {
         ResumeApplyResult applyResult = new ResumeApplyResult();
         if (r.getExperiences() == null || r.getExperiences().isEmpty()) return applyResult;
 
-        // 已有经历的"指纹"集合：奖项类合并分组 + 规范化 title
+        // 已有经历按语义分组维护指纹和规范化标题，避免跨类型误判重复
         Set<String> existingFingerprints = new HashSet<>();
-        java.util.List<String> existingNormalizedTitles = new java.util.ArrayList<>();
+        Map<String, List<String>> existingTitlesByGroup = new HashMap<>();
         List<UserExperience> existing = experienceMapper.selectList(
                 new LambdaQueryWrapper<UserExperience>().eq(UserExperience::getUserId, userId));
         for (UserExperience e : existing) {
-            existingFingerprints.add(fingerprint(e.getType(), e.getTitle()));
-            if (e.getTitle() != null) {
-                existingNormalizedTitles.add(e.getTitle().toLowerCase()
-                        .replaceAll("[\\s\\-_·\\.,()\\[\\]【】（）/／、，。]+", ""));
-            }
+            deduplicator.remember(existingFingerprints, existingTitlesByGroup, e.getType(), e.getTitle());
         }
-
-        // 本批次内去重（防止 LLM 自己返回了重复项）
-        Set<String> seenInBatch = new HashSet<>();
 
         // 阶段 1：先过滤出真要入库的项（同步、廉价），避免给被跳过的项白白调 LLM 摘要
         java.util.List<ResumeExtractResult.ExperienceItem> toInsert = new java.util.ArrayList<>();
         for (ResumeExtractResult.ExperienceItem item : r.getExperiences()) {
             if (item.getTitle() == null || item.getTitle().isBlank()) continue;
-            String fp = fingerprint(item.getType(), item.getTitle());
-            if (isDuplicate(existingFingerprints, item.getType(), item.getTitle(), existingNormalizedTitles)
-                    || !seenInBatch.add(fp)) {
+            if (deduplicator.isDuplicate(existingFingerprints, existingTitlesByGroup,
+                    item.getType(), item.getTitle())) {
                 applyResult.setSkipped(applyResult.getSkipped() + 1);
                 continue;
             }
+            // 立即记住本批次已接受项，让后续近似标题也能被去重
+            deduplicator.remember(existingFingerprints, existingTitlesByGroup,
+                    item.getType(), item.getTitle());
             toInsert.add(item);
         }
 
@@ -199,34 +197,6 @@ public class ResumeExtractService {
         // 这里不再手动 set，避免"标志位 1 但用户后来删了经历"的脏数据
 
         return applyResult;
-    }
-
-    /** 经历去重指纹：同类奖项类（AWARD/COMPETITION/PAPER）视为同组，title 做包含匹配 */
-    private String fingerprint(String type, String title) {
-        String t = title == null ? "" : title.toLowerCase()
-                .replaceAll("[\\s\\-_·\\.,()\\[\\]【】（）/／、，。]+", "");
-        // 奖项类（含竞赛、论文）共用同一个分组键
-        String groupKey = (type == null) ? "" : switch (type) {
-            case "AWARD", "COMPETITION", "PAPER" -> "AWARD_GROUP";
-            default -> type;
-        };
-        return groupKey + "|" + t;
-    }
-
-    /** 判断两条经历是否"语义上重复"：指纹完全一致，或一方 title 包含另一方（最短长度 ≥ 3） */
-    private boolean isDuplicate(Set<String> existingFps, String type, String title,
-                                java.util.List<String> existingTitles) {
-        String fp = fingerprint(type, title);
-        if (existingFps.contains(fp)) return true;
-        // 包含匹配：避免"蓝桥杯" vs "蓝桥杯省级一等奖" 当成不同
-        String norm = title == null ? "" : title.toLowerCase()
-                .replaceAll("[\\s\\-_·\\.,()\\[\\]【】（）/／、，。]+", "");
-        if (norm.length() < 3) return false;
-        for (String old : existingTitles) {
-            if (old.length() < 3) continue;
-            if (old.contains(norm) || norm.contains(old)) return true;
-        }
-        return false;
     }
 
     private String extractPdfText(MultipartFile file) {
