@@ -28,6 +28,6 @@ public class UserProfileController {
     @Operation(summary = "创建/更新当前用户画像")
     @PutMapping
     public R<UserProfile> upsert(@Valid @RequestBody UserProfileRequest req) {
-        return R.ok(userProfileService.upsert(SecurityUtils.currentUserId(), req));
+        return R.ok(userProfileService.replace(SecurityUtils.currentUserId(), req));
     }
 }

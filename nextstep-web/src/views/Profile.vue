@@ -23,6 +23,13 @@ const loading = ref(false)
 const saving = ref(false)
 const loaded = ref(false)
 
+const PROFILE_FIELDS = [
+  'currentSchool', 'schoolLevel', 'currentMajor', 'majorCategory', 'degreeType',
+  'gradeYear', 'gpa', 'gpaScale', 'classRankPct', 'englishLevel', 'englishScore',
+  'targetPaths', 'preferredRegions', 'preferredIndustries', 'salaryExpectation',
+  'riskAppetite', 'monthlyBudget', 'interests', 'strengths', 'weaknesses', 'currentStatus'
+] as const
+
 const levelOptions = [
   { v: 'C9',           l: 'C9 联盟' },
   { v: '985',          l: '985 工程' },
@@ -339,7 +346,11 @@ async function load() {
 async function save() {
   saving.value = true
   try {
-    const saved = await profileApi.upsert(form)
+    // 完整保存时显式发送 null，后端才能区分“清空字段”和“未参与本次更新”。
+    const payload = Object.fromEntries(
+      PROFILE_FIELDS.map(k => [k, form[k] ?? null])
+    ) as UserProfile
+    const saved = await profileApi.upsert(payload)
     Object.assign(form, saved)
     ElMessage.success('已保存')
   } catch {} finally { saving.value = false }

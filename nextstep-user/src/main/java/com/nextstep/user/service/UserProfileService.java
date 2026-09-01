@@ -94,10 +94,24 @@ public class UserProfileService {
 
     @Transactional
     public UserProfile upsert(Long userId, UserProfileRequest req) {
+        return save(userId, req, false);
+    }
+
+    /** 用户画像页面的完整保存：请求中的 null 代表清空对应字段。 */
+    @Transactional
+    public UserProfile replace(Long userId, UserProfileRequest req) {
+        return save(userId, req, true);
+    }
+
+    private UserProfile save(Long userId, UserProfileRequest req, boolean overwriteNulls) {
         validator.normalizeRequest(req);
         UserProfile existing = getRaw(userId);
         UserProfile target = existing == null ? new UserProfile() : existing;
-        copyNonNull(req, target);
+        if (overwriteNulls) {
+            copyAllFields(req, target);
+        } else {
+            copyNonNullFields(req, target);
+        }
         target.setUserId(userId);
         validator.validateProfile(target);
         // upsert 时不再写 profileCompleteness：它是派生字段，由 get() 时实时算
@@ -118,7 +132,7 @@ public class UserProfileService {
                 .eq(UserProfile::getUserId, userId));
     }
 
-    private void copyNonNull(Object src, Object dest) {
+    static void copyNonNullFields(Object src, Object dest) {
         BeanWrapper wrapper = new BeanWrapperImpl(src);
         Set<String> nullProps = new HashSet<>();
         for (PropertyDescriptor pd : wrapper.getPropertyDescriptors()) {
@@ -127,6 +141,10 @@ public class UserProfileService {
             }
         }
         BeanUtils.copyProperties(src, dest, nullProps.toArray(new String[0]));
+    }
+
+    static void copyAllFields(Object src, Object dest) {
+        BeanUtils.copyProperties(src, dest);
     }
 
     int calcCompleteness(UserProfile p) {
