@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { resumeApi, type ResumeExtractResult, type ResumeExperienceItem } from '@/api/resume'
+import { formatRequestError } from '@/utils/error'
 
 const emit = defineEmits<{ (e: 'applied'): void }>()
 
@@ -111,7 +112,7 @@ async function onFileChange(file: UploadFile) {
     result.value = await resumeApi.parse(file.raw)
     ElMessage.success('AI 抽取完成，请检查并确认')
   } catch (e: any) {
-    ElMessage.error('抽取失败：' + e.message)
+    ElMessage.error('抽取失败：' + formatRequestError(e, '请稍后重试'))
   } finally {
     uploading.value = false
     stopStageTimer()
@@ -139,7 +140,9 @@ async function confirmApply() {
       ElMessage.success(msg)
       visible.value = false
       emit('applied')
-    } catch {} finally { applying.value = false }
+    } catch (e) {
+      ElMessage.error('应用简历失败：' + formatRequestError(e, '请稍后重试'))
+    } finally { applying.value = false }
   })
 }
 </script>

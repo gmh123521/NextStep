@@ -2,6 +2,7 @@
 import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
 import { transcriptApi, type TranscriptExtractResult, type CourseItem } from '@/api/transcript'
 import { compressImageIfNeeded } from '@/utils/imageCompress'
+import { formatRequestError } from '@/utils/error'
 
 const emit = defineEmits<{ (e: 'applied'): void }>()
 
@@ -115,7 +116,7 @@ async function onFileChange(file: UploadFile) {
     result.value = await transcriptApi.parse(compressed)
     ElMessage.success('AI 识别完成，请检查并确认')
   } catch (e: any) {
-    ElMessage.error('识别失败：' + e.message)
+    ElMessage.error('识别失败：' + formatRequestError(e, '请稍后重试'))
   } finally {
     uploading.value = false
     stopStageTimer()
@@ -143,7 +144,9 @@ async function confirmApply() {
       ElMessage.success(msg)
       visible.value = false
       emit('applied')
-    } catch {} finally { applying.value = false }
+    } catch (e) {
+      ElMessage.error('应用成绩单失败：' + formatRequestError(e, '请稍后重试'))
+    } finally { applying.value = false }
   })
 }
 </script>

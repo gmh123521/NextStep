@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { experienceApi, type UserExperience } from '@/api/experience'
+import { formatRequestError } from '@/utils/error'
 
 const emit = defineEmits<{ (e: 'changed'): void }>()
 
@@ -44,6 +45,9 @@ async function load() {
   loading.value = true
   try {
     list.value = await experienceApi.list()
+  } catch (e) {
+    list.value = []
+    ElMessage.error('读取经历失败：' + formatRequestError(e, '请稍后重试'))
   } finally { loading.value = false }
 }
 
@@ -54,11 +58,18 @@ async function handleDelete(exp: UserExperience) {
       '删除经历',
       { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
     )
+  } catch {
+    return
+  }
+
+  try {
     await experienceApi.remove(exp.id)
     ElMessage.success('已删除')
     await load()
     emit('changed')  // 通知父组件刷新画像（has_* 派生字段会变）
-  } catch { /* 取消 */ }
+  } catch (e) {
+    ElMessage.error('删除经历失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 defineExpose({ reload: load })

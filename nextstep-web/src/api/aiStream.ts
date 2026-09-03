@@ -1,4 +1,5 @@
 import { getToken } from './http'
+import { formatResponseError } from '@/utils/error'
 
 export interface ExplainController {
   abort(): void
@@ -35,7 +36,7 @@ export function streamExplain(
     signal: ctl.signal
   })
     .then(async resp => {
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      if (!resp.ok) throw new Error(await formatResponseError(resp, 'AI 解读请求失败'))
       if (!resp.body) throw new Error('No response body')
 
       const reader = resp.body.getReader()

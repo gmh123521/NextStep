@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { schoolApi, type School, type SchoolMajor } from '@/api/school'
+import { ElMessage } from 'element-plus'
+import { formatRequestError } from '@/utils/error'
 
 const filter = reactive({ keyword: '', level: '', pageNum: 1, pageSize: 12 })
 const data = ref<School[]>([])
@@ -20,6 +22,10 @@ async function load() {
     const p = await schoolApi.page(filter)
     data.value = p.records
     total.value = p.total
+  } catch (e) {
+    data.value = []
+    total.value = 0
+    ElMessage.error('读取院校数据失败：' + formatRequestError(e, '请稍后重试'))
   } finally { loading.value = false }
 }
 
@@ -27,11 +33,21 @@ async function viewSchool(s: School) {
   selected.value = s
   drawerOpen.value = true
   enrolls.value = []
-  majors.value = await schoolApi.majors(s.id)
+  try {
+    majors.value = await schoolApi.majors(s.id)
+  } catch (e) {
+    majors.value = []
+    ElMessage.error('读取招生专业失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 async function viewMajor(m: SchoolMajor) {
-  enrolls.value = await schoolApi.admitStats(m.id)
+  try {
+    enrolls.value = await schoolApi.admitStats(m.id)
+  } catch (e) {
+    enrolls.value = []
+    ElMessage.error('读取上岸数据失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 onMounted(load)

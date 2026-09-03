@@ -2,6 +2,7 @@
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { plannerApi, type PlanView, type PlanTask } from '@/api/planner'
+import { formatRequestError } from '@/utils/error'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,8 +46,9 @@ async function load() {
   loading.value = true
   try {
     plan.value = await plannerApi.get(path.value)
-  } catch {
+  } catch (e) {
     plan.value = null
+    ElMessage.error('读取规划失败：' + formatRequestError(e, '请稍后重试'))
   } finally { loading.value = false }
   // 同时拉推荐战线（即使已有规划，重新生成时也会用到）
   loadRecommend()
@@ -58,7 +60,9 @@ async function loadRecommend() {
     recommendedMonths.value = r.months
     recommendReason.value = r.reason
     if (customMonths.value == null) customMonths.value = r.months
-  } catch {}
+  } catch (e) {
+    ElMessage.error('读取推荐战线失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 async function generate() {
@@ -70,7 +74,9 @@ async function generate() {
       ? customMonths.value : undefined
     plan.value = await plannerApi.generate(path.value, months)
     ElMessage.success('规划已生成')
-  } catch {} finally { generating.value = false }
+  } catch (e) {
+    ElMessage.error('规划生成失败：' + formatRequestError(e, '请稍后重试'))
+  } finally { generating.value = false }
 }
 
 async function regenerate() {
@@ -115,8 +121,9 @@ async function toggle(task: PlanTask) {
       plan.value.progressPct = plan.value.totalTasks
         ? Math.round(100 * done / plan.value.totalTasks) : 0
     }
-  } catch {
+  } catch (e) {
     task.completed = newVal === 1 ? 0 : 1  // 回滚
+    ElMessage.error('更新任务失败：' + formatRequestError(e, '请稍后重试'))
   }
 }
 

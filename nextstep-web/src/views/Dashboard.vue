@@ -3,6 +3,7 @@ import { profileApi, type UserProfile } from '@/api/profile'
 import { analysisApi, aiApi, type AnalysisResult } from '@/api/analysis'
 import { streamExplain, type ExplainController } from '@/api/aiStream'
 import { reportApi } from '@/api/report'
+import { formatRequestError } from '@/utils/error'
 import { ElMessage } from 'element-plus'
 import RadarChart from '@/components/RadarChart.vue'
 import ChatPanel from '@/components/ChatPanel.vue'
@@ -37,7 +38,12 @@ const tagColor: Record<string, 'success' | 'warning' | 'danger' | 'info'> = {
 }
 
 async function loadProfile() {
-  try { profile.value = await profileApi.get() } catch {}
+  try {
+    profile.value = await profileApi.get()
+  } catch (e) {
+    profile.value = null
+    ElMessage.error('读取画像失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 async function loadScore() {
@@ -45,14 +51,19 @@ async function loadScore() {
   scoring.value = true
   try {
     result.value = await analysisApi.score()
-  } catch {} finally { scoring.value = false }
+  } catch (e) {
+    result.value = null
+    ElMessage.error('评分失败：' + formatRequestError(e, '请稍后重试'))
+  } finally { scoring.value = false }
 }
 
 async function loadCachedExplain() {
   try {
     const cached = await aiApi.explainCache()
     if (cached) explanation.value = cached
-  } catch {}
+  } catch (e) {
+    ElMessage.error('读取 AI 解读失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 async function exportReport() {

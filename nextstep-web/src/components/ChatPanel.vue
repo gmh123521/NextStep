@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { chatApi, type ChatHistoryMessage } from '@/api/chat'
+import { formatRequestError } from '@/utils/error'
 
 const emit = defineEmits<{ (e: 'profileChanged'): void }>()
 
@@ -25,7 +26,9 @@ async function loadHistory() {
       await kickoff()
     }
     scrollToBottom()
-  } catch {}
+  } catch (e) {
+    messages.value = [{ role: 'assistant', content: '暂时无法读取对话历史：' + formatRequestError(e, '请稍后重试') }]
+  }
 }
 
 /** 启动语：让 LLM 看画像后主动开口 */
@@ -34,8 +37,8 @@ async function kickoff() {
   try {
     const r = await chatApi.kickoff()
     messages.value = [{ role: 'assistant', content: r.reply }]
-  } catch {
-    messages.value = [{ role: 'assistant', content: '你好，我是 NextStep 学长助手，有什么想聊的？' }]
+  } catch (e) {
+    messages.value = [{ role: 'assistant', content: '暂时无法启动对话：' + formatRequestError(e, '请稍后重试') }]
   } finally {
     sending.value = false
   }
@@ -58,7 +61,7 @@ async function send() {
     // if (r.updatedFields?.length) { ElMessage.success(...) }
     scrollToBottom()
   } catch (e: any) {
-    messages.value.push({ role: 'assistant', content: '（出错了：' + (e?.msg || e?.message || '请重试') + '）' })
+    messages.value.push({ role: 'assistant', content: '（出错了：' + formatRequestError(e, '请重试') + '）' })
   } finally {
     sending.value = false
   }

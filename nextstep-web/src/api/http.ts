@@ -1,5 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
+import { formatRequestError } from '@/utils/error'
 
 export interface R<T> {
   code: number
@@ -43,12 +44,10 @@ http.interceptors.response.use(
       if (location.pathname !== '/login') location.href = '/login'
       return Promise.reject(body)
     }
-    ElMessage.error(body.msg || '请求失败')
     return Promise.reject(body)
   },
   err => {
-    ElMessage.error(err?.message || '网络错误')
-    return Promise.reject(err)
+    return Promise.reject(new Error(formatRequestError(err, '网络请求失败')))
   }
 )
 

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:error": "node --experimental-strip-types scripts/test-error-message.mjs"
   },
   "dependencies": {
     "axios": "^1.7.7",

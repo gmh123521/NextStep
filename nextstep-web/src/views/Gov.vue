@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { govApi } from '@/api/gov'
+import { ElMessage } from 'element-plus'
+import { formatRequestError } from '@/utils/error'
 
 const filter = reactive<{ year?: number; examType?: string; province?: string; keyword?: string }>({
   year: 2025, examType: ''
@@ -13,12 +15,19 @@ async function load() {
   loading.value = true
   try {
     list.value = await govApi.posts(filter)
+  } catch (e) {
+    list.value = []
+    ElMessage.error('读取岗位数据失败：' + formatRequestError(e, '请稍后重试'))
   } finally { loading.value = false }
 }
 
 async function viewDetail(p: any) {
-  detail.value = await govApi.detail(p.id)
-  drawerOpen.value = true
+  try {
+    detail.value = await govApi.detail(p.id)
+    drawerOpen.value = true
+  } catch (e) {
+    ElMessage.error('读取岗位详情失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 onMounted(load)

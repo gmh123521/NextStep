@@ -4,6 +4,7 @@ import { profileApi, type UserProfile } from '@/api/profile'
 import ResumeUploader from '@/components/ResumeUploader.vue'
 import TranscriptUploader from '@/components/TranscriptUploader.vue'
 import ExperienceList from '@/components/ExperienceList.vue'
+import { formatRequestError } from '@/utils/error'
 
 const resumeUploader = ref<InstanceType<typeof ResumeUploader> | null>(null)
 const transcriptUploader = ref<InstanceType<typeof TranscriptUploader> | null>(null)
@@ -337,6 +338,8 @@ async function load() {
         }
       }
     }
+  } catch (e) {
+    ElMessage.error('读取画像失败：' + formatRequestError(e, '请稍后重试'))
   } finally {
     loading.value = false
     nextTick(() => { loaded.value = true })
@@ -353,7 +356,9 @@ async function save() {
     const saved = await profileApi.upsert(payload)
     Object.assign(form, saved)
     ElMessage.success('已保存')
-  } catch {} finally { saving.value = false }
+  } catch (e) {
+    ElMessage.error('画像保存失败：' + formatRequestError(e, '请稍后重试'))
+  } finally { saving.value = false }
 }
 
 function clearForm() {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { jobApi, type Industry, type JobPosition } from '@/api/job'
+import { ElMessage } from 'element-plus'
+import { formatRequestError } from '@/utils/error'
 
 const industries = ref<Industry[]>([])
 const positions = ref<JobPosition[]>([])
@@ -13,18 +15,30 @@ async function loadPositions() {
   loading.value = true
   try {
     positions.value = await jobApi.positions({ industryId: selectedIndustry.value })
+  } catch (e) {
+    positions.value = []
+    ElMessage.error('读取岗位列表失败：' + formatRequestError(e, '请稍后重试'))
   } finally { loading.value = false }
 }
 
 async function viewSalary(p: JobPosition) {
   selectedPosition.value = p
   drawerOpen.value = true
-  salary.value = await jobApi.salary(p.id)
+  try {
+    salary.value = await jobApi.salary(p.id)
+  } catch (e) {
+    salary.value = []
+    ElMessage.error('读取薪资行情失败：' + formatRequestError(e, '请稍后重试'))
+  }
 }
 
 onMounted(async () => {
-  industries.value = await jobApi.industries()
-  await loadPositions()
+  try {
+    industries.value = await jobApi.industries()
+    await loadPositions()
+  } catch (e) {
+    ElMessage.error('读取就业数据失败：' + formatRequestError(e, '请稍后重试'))
+  }
 })
 </script>
 

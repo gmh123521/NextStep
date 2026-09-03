@@ -1,4 +1,5 @@
 import { request, getToken } from './http'
+import { formatResponseError } from '@/utils/error'
 
 export interface PlanTask {
   id: number
@@ -70,7 +71,7 @@ export const plannerApi = {
     const resp = await fetch(`${baseUrl}/api/planner/export?path=${path}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
-    if (!resp.ok) throw new Error(`导出失败：HTTP ${resp.status}`)
+    if (!resp.ok) throw new Error(await formatResponseError(resp, '规划导出失败'))
     const buf = await resp.arrayBuffer()
     const blob = new Blob([buf], { type: 'application/pdf' })
     const url = URL.createObjectURL(blob)
