@@ -285,7 +285,7 @@ DASHSCOPE_API_KEY=sk-your-key-here
 ### 3. 启动中间件
 
 ```bash
-docker compose up -d mysql redis
+docker-compose up -d mysql redis
 ```
 
 ### 4. 编译打包
@@ -318,7 +318,10 @@ npm run dev
 mvn clean package -DskipTests
 
 # 一键拉起 MySQL + Redis + 后端
-docker compose up -d
+docker-compose up -d
+
+# 如果安装的是新版 Compose 插件，也可以使用：
+# docker compose up -d
 ```
 
 ---
