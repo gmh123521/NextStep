@@ -27,6 +27,12 @@ public class CrawlerProperties {
     /** 单次任务最大抓取条数（防止意外大批量） */
     private int maxItems = 500;
 
+    /** 原始响应快照目录；生产环境建议映射到持久化存储 */
+    private String snapshotDir = "data/crawler-raw";
+
+    /** 当前考研数据所属年度，可通过环境变量覆盖 */
+    private int kaoyanDataYear = 2026;
+
     /** 研招网：招生专业目录 JSON 接口（示例，实际以站点公开接口为准） */
     private String kaoyanUrl = "https://yz.chsi.com.cn/zsml/pages/getMl.jsp";
 

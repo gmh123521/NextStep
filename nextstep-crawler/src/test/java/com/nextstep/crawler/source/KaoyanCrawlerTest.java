@@ -5,13 +5,16 @@ import com.nextstep.crawler.config.CrawlerProperties;
 import com.nextstep.crawler.dto.CrawlResult;
 import com.nextstep.crawler.fetch.HttpFetcher;
 import com.nextstep.crawler.mapper.SchoolUpsertMapper;
+import com.nextstep.crawler.service.RawSnapshotStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class KaoyanCrawlerTest {
@@ -75,5 +78,17 @@ class KaoyanCrawlerTest {
 
         assertEquals(1, result.getFetched());
         assertEquals(1, result.getInserted());
+    }
+
+    @Test
+    void savesRawResponseSnapshotBeforeParsing() {
+        RawSnapshotStore snapshotStore = mock(RawSnapshotStore.class);
+        crawler = new KaoyanCrawler(props, fetcher, mapper, snapshotStore);
+        when(fetcher.get(props.getKaoyanUrl())).thenReturn("{\"data\":[{\"dwmc\":\"快照大学\",\"dwdm\":\"30001\"}]}");
+        when(mapper.insertIgnore(any())).thenReturn(1);
+
+        crawler.crawl();
+
+        verify(snapshotStore).save(eq("KAOYAN_SCHOOL"), eq(props.getKaoyanDataYear()), any(), any());
     }
 }

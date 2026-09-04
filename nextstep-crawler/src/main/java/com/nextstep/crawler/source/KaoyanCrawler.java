@@ -7,11 +7,15 @@ import com.nextstep.crawler.config.CrawlerProperties;
 import com.nextstep.crawler.dto.CrawlResult;
 import com.nextstep.crawler.fetch.HttpFetcher;
 import com.nextstep.crawler.mapper.SchoolUpsertMapper;
+import com.nextstep.crawler.service.RawSnapshotStore;
 import com.nextstep.data.school.entity.School;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 
 /**
@@ -27,13 +31,26 @@ import java.util.Iterator;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class KaoyanCrawler implements SourceCrawler {
 
     private final CrawlerProperties props;
     private final HttpFetcher fetcher;
     private final SchoolUpsertMapper schoolUpsertMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RawSnapshotStore snapshotStore;
+
+    public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper) {
+        this(props, fetcher, schoolUpsertMapper, null);
+    }
+
+    @Autowired
+    public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper,
+                         RawSnapshotStore snapshotStore) {
+        this.props = props;
+        this.fetcher = fetcher;
+        this.schoolUpsertMapper = schoolUpsertMapper;
+        this.snapshotStore = snapshotStore;
+    }
 
     @Override
     public String source() {
@@ -47,6 +64,7 @@ public class KaoyanCrawler implements SourceCrawler {
         if (body == null || body.isBlank()) {
             throw new BizException("研招院校数据响应为空");
         }
+        saveSnapshot(body);
 
         JsonNode root;
         try {
@@ -126,5 +144,26 @@ public class KaoyanCrawler implements SourceCrawler {
             if (n != null && !n.isNull() && !n.asText().isBlank()) return n.asText().trim();
         }
         return null;
+    }
+
+    private void saveSnapshot(String body) {
+        if (snapshotStore == null) return;
+        try {
+            byte[] content = body.getBytes(StandardCharsets.UTF_8);
+            snapshotStore.save("KAOYAN_SCHOOL", props.getKaoyanDataYear(), sha256(content), content);
+        } catch (RuntimeException e) {
+            log.warn("[crawler:KAOYAN] 保存原始快照失败，将继续处理当前响应: {}", e.getMessage());
+        }
+    }
+
+    private String sha256(byte[] content) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(content);
+            StringBuilder result = new StringBuilder(digest.length * 2);
+            for (byte value : digest) result.append(String.format("%02x", value));
+            return result.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
     }
 }
