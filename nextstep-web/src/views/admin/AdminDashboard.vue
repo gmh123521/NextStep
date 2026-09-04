@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { adminApi, type AdminStats, type AdminUser, type CrawlerJob, type DataImportBatch, type GovPostRecord, type JobPositionRecord, type SalaryStatRecord, type SchoolRecord } from '@/api/admin'
+import { adminApi, type AdminStats, type AdminUser, type CrawlerJob, type DataImportBatch, type DataSourceRecord, type GovPostRecord, type JobPositionRecord, type SalaryStatRecord, type SchoolRecord } from '@/api/admin'
 import { useUserStore } from '@/stores/user'
 import { formatRequestError } from '@/utils/error'
 import { validateAdminDataForm, type AdminDataType } from '@/utils/adminValidation'
@@ -29,6 +29,9 @@ const importBatchPageSize = ref(10)
 const importBatchLoading = ref(false)
 const importBatchActionId = ref<number | null>(null)
 const importBatchFilters = reactive({ sourceCode: '', status: '', dataYear: undefined as number | undefined })
+const dataSources = ref<DataSourceRecord[]>([])
+const dataSourceLoading = ref(false)
+const dataSourceActionId = ref<number | null>(null)
 type DataType = AdminDataType
 const dataType = ref<DataType>('schools')
 const dataLoading = ref(false)
@@ -220,6 +223,38 @@ async function updateImportBatch(row: DataImportBatch | any, action: 'approve' |
   } finally { importBatchActionId.value = null }
 }
 
+async function loadDataSources() {
+  dataSourceLoading.value = true
+  try { dataSources.value = await adminApi.dataSources() }
+  catch (e) { dataSources.value = []; ElMessage.error('读取数据源失败：' + formatRequestError(e, '请稍后重试')) }
+  finally { dataSourceLoading.value = false }
+}
+
+async function editDataSource(row: DataSourceRecord | any) {
+  let url: string
+  try {
+    const result = await ElMessageBox.prompt('请输入公开数据接口地址', `配置 ${row.sourceCode}`, { inputValue: row.sourceUrl || '', inputPlaceholder: 'https://...' })
+    url = result.value
+  } catch { return }
+  dataSourceActionId.value = row.id
+  try {
+    await adminApi.updateDataSource(row.id, { sourceUrl: url, enabled: row.enabled, parserVersion: row.parserVersion })
+    ElMessage.success('数据源配置已保存')
+    await loadDataSources()
+  } catch (e) { ElMessage.error('保存数据源配置失败：' + formatRequestError(e, '请稍后重试')) }
+  finally { dataSourceActionId.value = null }
+}
+
+async function toggleDataSource(row: DataSourceRecord | any) {
+  dataSourceActionId.value = row.id
+  try {
+    await adminApi.updateDataSource(row.id, { enabled: row.enabled === 1 ? 0 : 1, parserVersion: row.parserVersion })
+    ElMessage.success(row.enabled === 1 ? '数据源已停用' : '数据源已启用')
+    await loadDataSources()
+  } catch (e) { ElMessage.error('更新数据源状态失败：' + formatRequestError(e, '请稍后重试')) }
+  finally { dataSourceActionId.value = null }
+}
+
 async function loadData() {
   dataLoading.value = true
   try {
@@ -338,6 +373,7 @@ watch(activeTab, async (tab) => {
   if (tab === 'users' && !users.value.length) await loadUsers()
   if (tab === 'crawler' && !crawlerJobs.value.length) await loadCrawlerTab()
   if (tab === 'batches' && !importBatches.value.length) await loadImportBatches()
+  if (tab === 'sources' && !dataSources.value.length) await loadDataSources()
   if (tab === 'data' && !schools.value.length) await loadData()
 })
 
@@ -435,6 +471,19 @@ onMounted(loadOverview)
             </el-table-column>
           </el-table>
           <el-pagination v-model:current-page="importBatchPage" v-model:page-size="importBatchPageSize" class="mt-4 justify-end" layout="total, sizes, prev, pager, next" :total="importBatchTotal" @current-change="loadImportBatches" @size-change="importBatchPage = 1; loadImportBatches" />
+        </el-tab-pane>
+        <el-tab-pane label="数据源配置" name="sources">
+          <el-table v-loading="dataSourceLoading" :data="dataSources" stripe>
+            <el-table-column prop="sourceCode" label="编码" width="150" />
+            <el-table-column prop="sourceName" label="名称" min-width="160" />
+            <el-table-column prop="organization" label="发布机构" min-width="170" />
+            <el-table-column prop="sourceType" label="类型" width="90" />
+            <el-table-column prop="sourceUrl" label="来源地址" min-width="280" show-overflow-tooltip />
+            <el-table-column prop="parserVersion" label="解析器" width="90" />
+            <el-table-column label="状态" width="90"><template #default="{ row }"><el-tag :type="row.enabled === 1 ? 'success' : 'info'">{{ row.enabled === 1 ? '启用' : '停用' }}</el-tag></template></el-table-column>
+            <el-table-column label="操作" width="150" fixed="right"><template #default="{ row }"><el-button link type="primary" :disabled="dataSourceActionId != null" @click="editDataSource(row)">编辑地址</el-button><el-button link :type="row.enabled === 1 ? 'warning' : 'success'" :loading="dataSourceActionId === row.id" :disabled="dataSourceActionId != null" @click="toggleDataSource(row)">{{ row.enabled === 1 ? '停用' : '启用' }}</el-button></template></el-table-column>
+          </el-table>
+          <el-button class="mt-4" @click="loadDataSources">刷新</el-button>
         </el-tab-pane>
       </el-tabs>
     </el-card>

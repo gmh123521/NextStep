@@ -109,6 +109,21 @@ export interface DataImportBatch {
   updatedAt?: string
 }
 
+export interface DataSourceRecord {
+  id: number
+  sourceCode: string
+  sourceName: string
+  organization?: string
+  sourceType: string
+  sourceUrl?: string
+  enabled: number
+  updateFrequency?: string
+  licenseNote?: string
+  parserVersion: string
+  lastSuccessAt?: string
+  updatedAt?: string
+}
+
 export const adminApi = {
   overview: () => request<AdminStats>({ url: '/admin/stats/overview' }),
   users: (params: { pageNum: number; pageSize: number; keyword?: string; status?: number; role?: string }) =>
@@ -144,5 +159,8 @@ export const adminApi = {
   rejectImportBatch: (id: number, reason?: string) => request<void>({ url: `/admin/data-import/batches/${id}/reject`, method: 'PUT', params: { reason } }),
   publishImportBatch: (id: number) => request<void>({ url: `/admin/data-import/batches/${id}/publish`, method: 'PUT' }),
   rollbackImportBatch: (id: number, reason?: string) => request<void>({ url: `/admin/data-import/batches/${id}/rollback`, method: 'PUT', params: { reason } }),
-  reparseImportBatch: (id: number) => request<void>({ url: `/admin/data-import/batches/${id}/reparse`, method: 'PUT' })
+  reparseImportBatch: (id: number) => request<void>({ url: `/admin/data-import/batches/${id}/reparse`, method: 'PUT' }),
+  dataSources: () => request<DataSourceRecord[]>({ url: '/admin/data-import/sources' }),
+  updateDataSource: (id: number, data: { sourceUrl?: string; enabled?: number; parserVersion?: string }) =>
+    request<void>({ url: `/admin/data-import/sources/${id}`, method: 'PUT', params: data })
 }
