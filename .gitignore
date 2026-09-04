@@ -16,7 +16,7 @@ target/
 logs/
 
 # Local data
-data/
+/data/
 
 # Local secrets (never commit)
 .env
