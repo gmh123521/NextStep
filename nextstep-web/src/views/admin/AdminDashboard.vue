@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { adminApi, type AdminStats, type AdminUser, type CrawlerJob, type GovPostRecord, type JobPositionRecord, type SalaryStatRecord, type SchoolRecord } from '@/api/admin'
+import { adminApi, type AdminStats, type AdminUser, type CrawlerJob, type DataImportBatch, type GovPostRecord, type JobPositionRecord, type SalaryStatRecord, type SchoolRecord } from '@/api/admin'
 import { useUserStore } from '@/stores/user'
 import { formatRequestError } from '@/utils/error'
 import { validateAdminDataForm, type AdminDataType } from '@/utils/adminValidation'
@@ -22,6 +22,13 @@ const crawlerSource = ref('')
 const crawlerPage = ref(1)
 const crawlerPageSize = ref(10)
 const crawlerRunningSource = ref('')
+const importBatches = ref<DataImportBatch[]>([])
+const importBatchTotal = ref(0)
+const importBatchPage = ref(1)
+const importBatchPageSize = ref(10)
+const importBatchLoading = ref(false)
+const importBatchActionId = ref<number | null>(null)
+const importBatchFilters = reactive({ sourceCode: '', status: '', dataYear: undefined as number | undefined })
 type DataType = AdminDataType
 const dataType = ref<DataType>('schools')
 const dataLoading = ref(false)
@@ -165,6 +172,54 @@ async function runCrawler(source: string) {
   }
 }
 
+async function loadImportBatches() {
+  importBatchLoading.value = true
+  try {
+    const result = await adminApi.importBatches({ pageNum: importBatchPage.value, pageSize: importBatchPageSize.value, ...importBatchFilters })
+    importBatches.value = result.records
+    importBatchTotal.value = result.total
+  } catch (e) {
+    importBatches.value = []
+    importBatchTotal.value = 0
+    ElMessage.error('读取数据批次失败：' + formatRequestError(e, '请稍后重试'))
+  } finally { importBatchLoading.value = false }
+}
+
+function batchStatusType(status: string) {
+  if (status === 'PUBLISHED') return 'success'
+  if (status === 'REJECTED' || status === 'ROLLED_BACK' || status === 'FAILED') return 'danger'
+  if (status === 'APPROVED') return 'primary'
+  return 'warning'
+}
+
+function batchStatusLabel(status: string) {
+  return ({ PENDING: '待处理', RUNNING: '解析中', SUCCEEDED: '待审核', APPROVED: '已审核', REJECTED: '已驳回', FAILED: '失败', PUBLISHED: '已发布', ROLLED_BACK: '已回滚' } as Record<string, string>)[status] || status
+}
+
+async function updateImportBatch(row: DataImportBatch | any, action: 'approve' | 'publish' | 'reject' | 'rollback' | 'reparse') {
+  let reason: string | undefined
+  if (action === 'reject' || action === 'rollback') {
+    try {
+      const result = await ElMessageBox.prompt('请输入处理原因（可选）', action === 'reject' ? '驳回批次' : '回滚批次', { inputPlaceholder: '原因' })
+      reason = result.value
+    } catch { return }
+  } else if (action !== 'reparse') {
+    try { await ElMessageBox.confirm(`确认${action === 'approve' ? '审核通过' : '发布'}批次 #${row.id} 吗？`, '操作确认') } catch { return }
+  }
+  importBatchActionId.value = row.id
+  try {
+    if (action === 'approve') await adminApi.approveImportBatch(row.id)
+    else if (action === 'publish') await adminApi.publishImportBatch(row.id)
+    else if (action === 'reject') await adminApi.rejectImportBatch(row.id, reason)
+    else if (action === 'rollback') await adminApi.rollbackImportBatch(row.id, reason)
+    else await adminApi.reparseImportBatch(row.id)
+    ElMessage.success('批次状态已更新')
+    await loadImportBatches()
+  } catch (e) {
+    ElMessage.error('更新批次失败：' + formatRequestError(e, '请稍后重试'))
+  } finally { importBatchActionId.value = null }
+}
+
 async function loadData() {
   dataLoading.value = true
   try {
@@ -282,6 +337,7 @@ watch(activeTab, async (tab) => {
   if (tab === 'overview' && !stats.value) await loadOverview()
   if (tab === 'users' && !users.value.length) await loadUsers()
   if (tab === 'crawler' && !crawlerJobs.value.length) await loadCrawlerTab()
+  if (tab === 'batches' && !importBatches.value.length) await loadImportBatches()
   if (tab === 'data' && !schools.value.length) await loadData()
 })
 
@@ -349,6 +405,36 @@ onMounted(loadOverview)
           <div class="flex flex-wrap gap-2 mb-4"><el-button v-for="source in sources" :key="source" type="primary" plain :loading="crawlerRunningSource === source" :disabled="Boolean(crawlerRunningSource)" @click="runCrawler(source)">运行 {{ source }}</el-button><el-select v-model="crawlerSource" placeholder="筛选数据源" clearable class="w-40" @change="crawlerPage = 1; loadCrawlerJobs()"><el-option v-for="source in sources" :key="source" :label="source" :value="source" /></el-select><el-button @click="loadCrawlerJobs">刷新</el-button></div>
           <el-table v-loading="loading" :data="crawlerJobs" stripe><el-table-column prop="source" label="数据源" width="130" /><el-table-column prop="triggerBy" label="触发方式" width="100" /><el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="row.status === 'SUCCESS' ? 'success' : row.status === 'FAILED' ? 'danger' : 'warning'">{{ row.status }}</el-tag></template></el-table-column><el-table-column prop="fetched" label="抓取数" width="80" /><el-table-column prop="inserted" label="写入数" width="80" /><el-table-column prop="skipped" label="跳过数" width="80" /><el-table-column prop="message" label="结果" min-width="220" show-overflow-tooltip /><el-table-column prop="startedAt" label="开始时间" min-width="170" /></el-table>
           <el-pagination v-model:current-page="crawlerPage" v-model:page-size="crawlerPageSize" class="mt-4 justify-end" layout="total, sizes, prev, pager, next" :total="crawlerTotal" @current-change="loadCrawlerJobs" @size-change="crawlerPage = 1; loadCrawlerJobs" />
+        </el-tab-pane>
+
+        <el-tab-pane label="数据批次" name="batches">
+          <div class="flex flex-wrap gap-2 mb-4">
+            <el-input v-model="importBatchFilters.sourceCode" placeholder="数据源编码" clearable class="w-44" />
+            <el-select v-model="importBatchFilters.status" placeholder="批次状态" clearable class="w-36">
+              <el-option label="待审核" value="SUCCEEDED" /><el-option label="已审核" value="APPROVED" /><el-option label="已发布" value="PUBLISHED" /><el-option label="已驳回" value="REJECTED" /><el-option label="失败" value="FAILED" />
+            </el-select>
+            <el-input-number v-model="importBatchFilters.dataYear" :min="2000" :max="2100" placeholder="年份" />
+            <el-button type="primary" @click="importBatchPage = 1; loadImportBatches()">查询</el-button>
+            <el-button @click="loadImportBatches">刷新</el-button>
+          </div>
+          <el-table v-loading="importBatchLoading" :data="importBatches" stripe>
+            <el-table-column prop="id" label="批次" width="80" />
+            <el-table-column prop="sourceCode" label="数据源" min-width="150" />
+            <el-table-column prop="dataYear" label="年份" width="80" />
+            <el-table-column label="状态" width="100"><template #default="{ row }"><el-tag :type="batchStatusType(row.status)">{{ batchStatusLabel(row.status) }}</el-tag></template></el-table-column>
+            <el-table-column label="记录统计" min-width="180"><template #default="{ row }">总计 {{ row.totalCount }}，成功 {{ row.successCount }}，失败 {{ row.failedCount }}</template></el-table-column>
+            <el-table-column prop="updatedAt" label="更新时间" min-width="170" />
+            <el-table-column label="操作" min-width="250" fixed="right">
+              <template #default="{ row }">
+                <el-button v-if="row.status === 'SUCCEEDED'" link type="primary" :loading="importBatchActionId === row.id" @click="updateImportBatch(row, 'approve')">审核通过</el-button>
+                <el-button v-if="row.status === 'APPROVED'" link type="success" :loading="importBatchActionId === row.id" @click="updateImportBatch(row, 'publish')">发布</el-button>
+                <el-button v-if="['SUCCEEDED', 'APPROVED'].includes(row.status)" link type="danger" :disabled="importBatchActionId != null" @click="updateImportBatch(row, 'reject')">驳回</el-button>
+                <el-button v-if="row.status === 'PUBLISHED'" link type="warning" :disabled="importBatchActionId != null" @click="updateImportBatch(row, 'rollback')">回滚</el-button>
+                <el-button v-if="['FAILED', 'REJECTED', 'ROLLED_BACK'].includes(row.status)" link type="info" :disabled="importBatchActionId != null" @click="updateImportBatch(row, 'reparse')">重新解析</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-pagination v-model:current-page="importBatchPage" v-model:page-size="importBatchPageSize" class="mt-4 justify-end" layout="total, sizes, prev, pager, next" :total="importBatchTotal" @current-change="loadImportBatches" @size-change="importBatchPage = 1; loadImportBatches" />
         </el-tab-pane>
       </el-tabs>
     </el-card>

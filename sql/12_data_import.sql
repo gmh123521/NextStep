@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `ns_data_import_batch` (
   `parser_version`  VARCHAR(32)  NOT NULL,
   `source_url`      VARCHAR(512)          DEFAULT NULL,
   `snapshot_path`   VARCHAR(512)          DEFAULT NULL,
-  `status`          VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/RUNNING/SUCCEEDED/FAILED/REJECTED/PUBLISHED',
+  `status`          VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/RUNNING/SUCCEEDED/FAILED/APPROVED/REJECTED/PUBLISHED/ROLLED_BACK',
   `total_count`     INT          NOT NULL DEFAULT 0,
   `success_count`   INT          NOT NULL DEFAULT 0,
   `skipped_count`   INT          NOT NULL DEFAULT 0,

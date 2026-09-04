@@ -88,6 +88,27 @@ export interface CrawlerJob {
   finishedAt?: string
 }
 
+export interface DataImportBatch {
+  id: number
+  sourceCode: string
+  dataYear: number
+  contentHash: string
+  parserVersion: string
+  sourceUrl?: string
+  snapshotPath?: string
+  status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'APPROVED' | 'REJECTED' | 'PUBLISHED' | 'ROLLED_BACK' | string
+  totalCount: number
+  successCount: number
+  skippedCount: number
+  failedCount: number
+  errorMessage?: string
+  startedAt?: string
+  finishedAt?: string
+  publishedAt?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export const adminApi = {
   overview: () => request<AdminStats>({ url: '/admin/stats/overview' }),
   users: (params: { pageNum: number; pageSize: number; keyword?: string; status?: number; role?: string }) =>
@@ -115,5 +136,13 @@ export const adminApi = {
   sources: () => request<string[]>({ url: '/admin/crawler/sources' }),
   runCrawler: (source: string) => request<CrawlerJob>({ url: `/admin/crawler/run/${source}`, method: 'POST' }),
   crawlerJobs: (params: { pageNum: number; pageSize: number; source?: string }) =>
-    request<PageResult<CrawlerJob>>({ url: '/admin/crawler/jobs', params })
+    request<PageResult<CrawlerJob>>({ url: '/admin/crawler/jobs', params }),
+  importBatches: (params: { pageNum: number; pageSize: number; sourceCode?: string; status?: string; dataYear?: number }) =>
+    request<PageResult<DataImportBatch>>({ url: '/admin/data-import/batches', params }),
+  importBatch: (id: number) => request<DataImportBatch>({ url: `/admin/data-import/batches/${id}` }),
+  approveImportBatch: (id: number) => request<void>({ url: `/admin/data-import/batches/${id}/approve`, method: 'PUT' }),
+  rejectImportBatch: (id: number, reason?: string) => request<void>({ url: `/admin/data-import/batches/${id}/reject`, method: 'PUT', params: { reason } }),
+  publishImportBatch: (id: number) => request<void>({ url: `/admin/data-import/batches/${id}/publish`, method: 'PUT' }),
+  rollbackImportBatch: (id: number, reason?: string) => request<void>({ url: `/admin/data-import/batches/${id}/rollback`, method: 'PUT', params: { reason } }),
+  reparseImportBatch: (id: number) => request<void>({ url: `/admin/data-import/batches/${id}/reparse`, method: 'PUT' })
 }
