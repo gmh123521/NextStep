@@ -51,7 +51,8 @@ public class KaoyanCatalogParser {
                     majorName,
                     text(row, "category", "xkml", "discipline"),
                     normalizeDegree(text(row, "degreeType", "degree_type", "degree")),
-                    subjects(row)
+                    subjects(row),
+                    row.path("year").asInt(row.path("dataYear").asInt(row.path("nd").asInt(0)))
             ));
         }
         return new ParseResult(records, errors);

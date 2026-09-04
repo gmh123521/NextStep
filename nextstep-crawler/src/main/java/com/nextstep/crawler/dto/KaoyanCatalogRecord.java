@@ -12,6 +12,12 @@ public record KaoyanCatalogRecord(
         String majorName,
         String category,
         String degreeType,
-        List<String> examSubjects
+        List<String> examSubjects,
+        int year
 ) {
+    public KaoyanCatalogRecord(String schoolCode, String schoolName, String province, String city,
+                                String majorCode, String majorName, String category, String degreeType,
+                                List<String> examSubjects) {
+        this(schoolCode, schoolName, province, city, majorCode, majorName, category, degreeType, examSubjects, 0);
+    }
 }
