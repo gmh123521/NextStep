@@ -62,6 +62,13 @@ public class DataImportBatchService {
         return batch;
     }
 
+    public void attachSnapshot(Long id, String sourceUrl, String snapshotPath) {
+        DataImportBatch batch = require(id);
+        batch.setSourceUrl(sourceUrl);
+        batch.setSnapshotPath(snapshotPath);
+        mapper.updateById(batch);
+    }
+
     public void markRunning(Long id) {
         DataImportBatch batch = require(id);
         batch.setStatus("RUNNING");

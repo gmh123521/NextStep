@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nextstep.common.exception.BizException;
 import com.nextstep.crawler.config.CrawlerProperties;
 import com.nextstep.crawler.dto.CrawlResult;
+import com.nextstep.crawler.entity.DataImportBatch;
 import com.nextstep.crawler.fetch.HttpFetcher;
 import com.nextstep.crawler.mapper.SchoolUpsertMapper;
+import com.nextstep.crawler.service.DataImportBatchService;
 import com.nextstep.crawler.service.RawSnapshotStore;
 import com.nextstep.data.school.entity.School;
 import lombok.extern.slf4j.Slf4j;
@@ -38,18 +40,26 @@ public class KaoyanCrawler implements SourceCrawler {
     private final SchoolUpsertMapper schoolUpsertMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RawSnapshotStore snapshotStore;
+    private final DataImportBatchService batchService;
 
     public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper) {
-        this(props, fetcher, schoolUpsertMapper, null);
+        this(props, fetcher, schoolUpsertMapper, null, null);
     }
 
     @Autowired
     public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper,
                          RawSnapshotStore snapshotStore) {
+        this(props, fetcher, schoolUpsertMapper, snapshotStore, null);
+    }
+
+    @Autowired
+    public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper,
+                         RawSnapshotStore snapshotStore, DataImportBatchService batchService) {
         this.props = props;
         this.fetcher = fetcher;
         this.schoolUpsertMapper = schoolUpsertMapper;
         this.snapshotStore = snapshotStore;
+        this.batchService = batchService;
     }
 
     @Override
@@ -64,22 +74,26 @@ public class KaoyanCrawler implements SourceCrawler {
         if (body == null || body.isBlank()) {
             throw new BizException("研招院校数据响应为空");
         }
-        saveSnapshot(body);
+        byte[] content = body.getBytes(StandardCharsets.UTF_8);
+        String hash = sha256(content);
+        String snapshotPath = saveSnapshot(body, hash);
+        DataImportBatch batch = beginBatch(hash, snapshotPath);
 
-        JsonNode root;
         try {
-            root = objectMapper.readTree(body);
-        } catch (Exception e) {
-            throw new BizException("研招院校数据响应格式无效");
-        }
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(body);
+            } catch (Exception e) {
+                throw new BizException("研招院校数据响应格式无效");
+            }
 
         // 兼容常见结构：顶层数组，或 {data:[...]} / {ssdm:[...]}
         JsonNode list = firstArray(root, "data", "list", "yxList", "ssList");
-        if (list == null || !list.isArray()) {
-            throw new BizException("研招院校数据缺少列表节点");
-        }
+            if (list == null || !list.isArray()) {
+                throw new BizException("研招院校数据缺少列表节点");
+            }
 
-        for (JsonNode node : list) {
+            for (JsonNode node : list) {
             if (result.getFetched() >= props.getMaxItems()) {
                 log.info("[crawler:KAOYAN] 达到单次上限 {} 条，停止", props.getMaxItems());
                 break;
@@ -94,9 +108,14 @@ public class KaoyanCrawler implements SourceCrawler {
             int affected = schoolUpsertMapper.insertIgnore(s);
             if (affected > 0) result.addInserted();
             else result.addSkipped();
+            }
+            if (batch != null) batchService.markSucceeded(batch.getId(), result.getFetched(), result.getInserted(), result.getSkipped(), 0);
+            log.info("[crawler:KAOYAN] {}", result.summary());
+            return result;
+        } catch (RuntimeException e) {
+            if (batch != null) batchService.markFailed(batch.getId(), e.getMessage());
+            throw e;
         }
-        log.info("[crawler:KAOYAN] {}", result.summary());
-        return result;
     }
 
     private School toSchool(JsonNode node) {
@@ -146,14 +165,23 @@ public class KaoyanCrawler implements SourceCrawler {
         return null;
     }
 
-    private void saveSnapshot(String body) {
-        if (snapshotStore == null) return;
+    private String saveSnapshot(String body, String hash) {
+        if (snapshotStore == null) return null;
         try {
             byte[] content = body.getBytes(StandardCharsets.UTF_8);
-            snapshotStore.save("KAOYAN_SCHOOL", props.getKaoyanDataYear(), sha256(content), content);
+            return snapshotStore.save("KAOYAN_SCHOOL", props.getKaoyanDataYear(), hash, content);
         } catch (RuntimeException e) {
             log.warn("[crawler:KAOYAN] 保存原始快照失败，将继续处理当前响应: {}", e.getMessage());
+            return null;
         }
+    }
+
+    private DataImportBatch beginBatch(String hash, String snapshotPath) {
+        if (batchService == null) return null;
+        DataImportBatch batch = batchService.createOrReuse("KAOYAN_SCHOOL", props.getKaoyanDataYear(), "sha256:" + hash, "v1");
+        if (snapshotPath != null) batchService.attachSnapshot(batch.getId(), props.getKaoyanUrl(), snapshotPath);
+        if (!"PUBLISHED".equals(batch.getStatus()) && !"APPROVED".equals(batch.getStatus())) batchService.markRunning(batch.getId());
+        return batch;
     }
 
     private String sha256(byte[] content) {

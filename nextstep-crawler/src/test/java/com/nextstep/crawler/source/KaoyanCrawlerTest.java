@@ -3,8 +3,10 @@ package com.nextstep.crawler.source;
 import com.nextstep.common.exception.BizException;
 import com.nextstep.crawler.config.CrawlerProperties;
 import com.nextstep.crawler.dto.CrawlResult;
+import com.nextstep.crawler.entity.DataImportBatch;
 import com.nextstep.crawler.fetch.HttpFetcher;
 import com.nextstep.crawler.mapper.SchoolUpsertMapper;
+import com.nextstep.crawler.service.DataImportBatchService;
 import com.nextstep.crawler.service.RawSnapshotStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -90,5 +92,24 @@ class KaoyanCrawlerTest {
         crawler.crawl();
 
         verify(snapshotStore).save(eq("KAOYAN_SCHOOL"), eq(props.getKaoyanDataYear()), any(), any());
+    }
+
+    @Test
+    void createsAndCompletesImportBatch() {
+        RawSnapshotStore snapshotStore = mock(RawSnapshotStore.class);
+        DataImportBatchService batchService = mock(DataImportBatchService.class);
+        DataImportBatch batch = new DataImportBatch();
+        batch.setId(21L);
+        batch.setStatus("PENDING");
+        when(batchService.createOrReuse(eq("KAOYAN_SCHOOL"), eq(props.getKaoyanDataYear()), any(), eq("v1"))).thenReturn(batch);
+        when(snapshotStore.save(any(), eq(props.getKaoyanDataYear()), any(), any())).thenReturn("KAOYAN_SCHOOL/2026/hash.json");
+        when(fetcher.get(props.getKaoyanUrl())).thenReturn("{\"data\":[{\"dwmc\":\"批次大学\",\"dwdm\":\"40001\"}]}");
+        when(mapper.insertIgnore(any())).thenReturn(1);
+        crawler = new KaoyanCrawler(props, fetcher, mapper, snapshotStore, batchService);
+
+        crawler.crawl();
+
+        verify(batchService).markRunning(21L);
+        verify(batchService).markSucceeded(21L, 1, 1, 0, 0);
     }
 }

@@ -5,13 +5,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nextstep.common.exception.BizException;
 import com.nextstep.crawler.config.CrawlerProperties;
 import com.nextstep.crawler.dto.CrawlResult;
+import com.nextstep.crawler.entity.DataImportBatch;
 import com.nextstep.crawler.fetch.HttpFetcher;
 import com.nextstep.crawler.mapper.GovPostUpsertMapper;
+import com.nextstep.crawler.service.DataImportBatchService;
+import com.nextstep.crawler.service.RawSnapshotStore;
 import com.nextstep.data.gov.entity.GovPost;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Iterator;
 
 /**
@@ -27,13 +33,28 @@ import java.util.Iterator;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class GovPostCrawler implements SourceCrawler {
 
     private final CrawlerProperties props;
     private final HttpFetcher fetcher;
     private final GovPostUpsertMapper govPostUpsertMapper;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RawSnapshotStore snapshotStore;
+    private final DataImportBatchService batchService;
+
+    public GovPostCrawler(CrawlerProperties props, HttpFetcher fetcher, GovPostUpsertMapper govPostUpsertMapper) {
+        this(props, fetcher, govPostUpsertMapper, null, null);
+    }
+
+    @Autowired
+    public GovPostCrawler(CrawlerProperties props, HttpFetcher fetcher, GovPostUpsertMapper govPostUpsertMapper,
+                          RawSnapshotStore snapshotStore, DataImportBatchService batchService) {
+        this.props = props;
+        this.fetcher = fetcher;
+        this.govPostUpsertMapper = govPostUpsertMapper;
+        this.snapshotStore = snapshotStore;
+        this.batchService = batchService;
+    }
 
     @Override
     public String source() {
@@ -48,19 +69,24 @@ public class GovPostCrawler implements SourceCrawler {
             throw new BizException("国考岗位数据响应为空");
         }
 
-        JsonNode root;
+        byte[] content = body.getBytes(StandardCharsets.UTF_8);
+        String hash = sha256(content);
+        String snapshotPath = saveSnapshot(content, hash);
+        DataImportBatch batch = beginBatch(hash, snapshotPath);
         try {
-            root = objectMapper.readTree(body);
-        } catch (Exception e) {
-            throw new BizException("国考岗位数据响应格式无效");
-        }
+            JsonNode root;
+            try {
+                root = objectMapper.readTree(body);
+            } catch (Exception e) {
+                throw new BizException("国考岗位数据响应格式无效");
+            }
 
         JsonNode list = firstArray(root, "data", "list", "rows", "positions");
-        if (list == null || !list.isArray()) {
-            throw new BizException("国考岗位数据缺少列表节点");
-        }
+            if (list == null || !list.isArray()) {
+                throw new BizException("国考岗位数据缺少列表节点");
+            }
 
-        for (JsonNode node : list) {
+            for (JsonNode node : list) {
             if (result.getFetched() >= props.getMaxItems()) {
                 log.info("[crawler:GOV_POST] 达到单次上限 {} 条，停止", props.getMaxItems());
                 break;
@@ -75,9 +101,43 @@ public class GovPostCrawler implements SourceCrawler {
             int affected = govPostUpsertMapper.insertIgnore(post);
             if (affected > 0) result.addInserted();
             else result.addSkipped();
+            }
+            if (batch != null) batchService.markSucceeded(batch.getId(), result.getFetched(), result.getInserted(), result.getSkipped(), 0);
+            log.info("[crawler:GOV_POST] {}", result.summary());
+            return result;
+        } catch (RuntimeException e) {
+            if (batch != null) batchService.markFailed(batch.getId(), e.getMessage());
+            throw e;
         }
-        log.info("[crawler:GOV_POST] {}", result.summary());
-        return result;
+    }
+
+    private String saveSnapshot(byte[] content, String hash) {
+        if (snapshotStore == null) return null;
+        try {
+            return snapshotStore.save("GOV_POST", props.getGovPostDataYear(), hash, content);
+        } catch (RuntimeException e) {
+            log.warn("[crawler:GOV_POST] 保存原始快照失败，将继续处理当前响应: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private DataImportBatch beginBatch(String hash, String snapshotPath) {
+        if (batchService == null) return null;
+        DataImportBatch batch = batchService.createOrReuse("GOV_POST", props.getGovPostDataYear(), "sha256:" + hash, "v1");
+        if (snapshotPath != null) batchService.attachSnapshot(batch.getId(), props.getGovPostUrl(), snapshotPath);
+        if (!"PUBLISHED".equals(batch.getStatus()) && !"APPROVED".equals(batch.getStatus())) batchService.markRunning(batch.getId());
+        return batch;
+    }
+
+    private String sha256(byte[] content) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(content);
+            StringBuilder result = new StringBuilder(digest.length * 2);
+            for (byte value : digest) result.append(String.format("%02x", value));
+            return result.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
     }
 
     private GovPost toPost(JsonNode node) {

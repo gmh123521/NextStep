@@ -33,6 +33,9 @@ public class CrawlerProperties {
     /** 当前考研数据所属年度，可通过环境变量覆盖 */
     private int kaoyanDataYear = 2026;
 
+    /** 当前国考职位所属年度，可通过环境变量覆盖 */
+    private int govPostDataYear = 2026;
+
     /** 研招网：招生专业目录 JSON 接口（示例，实际以站点公开接口为准） */
     private String kaoyanUrl = "https://yz.chsi.com.cn/zsml/pages/getMl.jsp";
 
