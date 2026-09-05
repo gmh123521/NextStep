@@ -338,6 +338,17 @@ docker-compose up -d
 | `REDIS_HOST` | `127.0.0.1` | Redis 地址 |
 | `REDIS_PORT` | `6379` | Redis 端口 |
 | `DASHSCOPE_API_KEY` | — | 通义千问 API Key（必填，AI 功能依赖） |
+| `CRAWLER_ENABLED` | `false` | 是否启用定时采集；后台手动采集不受此开关限制 |
+| `CRAWLER_KAOYAN_DATA_YEAR` | `2026` | 考研招生单位数据年份 |
+| `CRAWLER_GOV_POST_DATA_YEAR` | `2026` | 国考职位数据年份 |
+| `CRAWLER_KAOYAN_URL` | 研招网默认地址 | 考研数据接口，可在管理员数据源配置中覆盖 |
+| `CRAWLER_GOV_POST_URL` | 国家公务员局默认地址 | 国考职位接口，可在管理员数据源配置中覆盖 |
+
+原始采集快照默认保存到 `data/crawler-raw`，Docker 部署时会挂载为持久化卷。首次联调可运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-data-pipeline.ps1
+```
 
 > ⚠️ 生产环境请修改 `nextstep.jwt.secret`（application.yml）为随机长字符串，并替换数据库默认密码。
 

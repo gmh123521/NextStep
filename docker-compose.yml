@@ -41,7 +41,14 @@ services:
       MYSQL_PWD: root
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      CRAWLER_ENABLED: ${CRAWLER_ENABLED:-false}
+      CRAWLER_KAOYAN_DATA_YEAR: ${CRAWLER_KAOYAN_DATA_YEAR:-2026}
+      CRAWLER_GOV_POST_DATA_YEAR: ${CRAWLER_GOV_POST_DATA_YEAR:-2026}
+      CRAWLER_KAOYAN_URL: ${CRAWLER_KAOYAN_URL:-https://yz.chsi.com.cn/zsml/pages/getMl.jsp}
+      CRAWLER_GOV_POST_URL: ${CRAWLER_GOV_POST_URL:-http://www.scs.gov.cn/kl2023/kl/zwb/index.json}
       DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
     depends_on:
       - mysql
       - redis
+    volumes:
+      - ./data/crawler-raw:/app/data/crawler-raw
