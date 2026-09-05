@@ -63,12 +63,13 @@ CREATE TABLE IF NOT EXISTS `ns_data_raw_record` (
 INSERT INTO `ns_data_source`
   (`source_code`, `source_name`, `organization`, `source_type`, `source_url`, `update_frequency`, `license_note`)
 VALUES
-  ('KAOYAN_SCHOOL', '考研招生单位', '公开招生信息发布机构', 'JSON', NULL, '按年度或源站更新', '仅采集公开且允许使用的数据'),
-  ('KAOYAN_CATALOG', '考研专业目录', '高校研究生招生单位', 'XLSX', NULL, '按年度发布', '需保留原始来源和使用许可'),
-  ('GOV_POST', '国考职位表', '国家公务员局', 'JSON', NULL, '按年度发布', '仅采集公开且允许使用的数据')
+  ('KAOYAN_SCHOOL', '考研招生单位', '公开招生信息发布机构', 'JSON', 'https://yz.chsi.com.cn/zsml/pages/getMl.jsp', '按年度或源站更新', '仅采集公开且允许使用的数据'),
+  ('KAOYAN_CATALOG', '考研专业目录', '高校研究生招生单位', 'XLSX', 'https://yz.chsi.com.cn/zsml/queryAction.do', '按年度发布', '仅采集公开且允许使用的数据'),
+  ('GOV_POST', '国考职位表', '国家公务员局', 'JSON', 'http://www.scs.gov.cn/kl2023/kl/zwb/index.json', '按年度发布', '仅采集公开且允许使用的数据')
 ON DUPLICATE KEY UPDATE
   `source_name` = VALUES(`source_name`),
   `organization` = VALUES(`organization`),
   `source_type` = VALUES(`source_type`),
+  `source_url` = COALESCE(NULLIF(`source_url`, ''), VALUES(`source_url`)),
   `update_frequency` = VALUES(`update_frequency`),
   `license_note` = VALUES(`license_note`);
