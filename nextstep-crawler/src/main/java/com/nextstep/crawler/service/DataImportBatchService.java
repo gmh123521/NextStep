@@ -101,7 +101,7 @@ public class DataImportBatchService {
         validatePage(pageNum, pageSize);
         LambdaQueryWrapper<DataImportBatch> query = new LambdaQueryWrapper<DataImportBatch>()
                 .eq(sourceCode != null && !sourceCode.isBlank(), DataImportBatch::getSourceCode, normalizeOptional(sourceCode))
-                .eq(status != null && !status.isBlank(), DataImportBatch::getStatus, normalizeOptional(status).toUpperCase())
+                .eq(status != null && !status.isBlank(), DataImportBatch::getStatus, normalizeStatus(status))
                 .eq(dataYear != null, DataImportBatch::getDataYear, dataYear)
                 .orderByDesc(DataImportBatch::getId);
         Page<DataImportBatch> page = mapper.selectPage(Page.of(pageNum, pageSize), query);
@@ -202,6 +202,11 @@ public class DataImportBatchService {
 
     private String normalizeOptional(String value) {
         return value == null ? null : value.trim();
+    }
+
+    private String normalizeStatus(String value) {
+        String normalized = normalizeOptional(value);
+        return normalized == null ? null : normalized.toUpperCase();
     }
 
     private void validatePage(int pageNum, int pageSize) {

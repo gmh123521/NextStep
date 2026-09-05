@@ -1,5 +1,7 @@
 package com.nextstep.crawler.service;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.nextstep.common.core.PageResult;
 import com.nextstep.crawler.entity.DataImportBatch;
 import com.nextstep.crawler.mapper.DataImportBatchMapper;
 import org.junit.jupiter.api.Test;
@@ -102,5 +104,16 @@ class DataImportBatchServiceTest {
         assertEquals("PENDING", batch.getStatus());
         assertEquals(0, batch.getFailedCount());
         verify(mapper).updateById(batch);
+    }
+
+    @Test
+    void pagesWithoutOptionalFilters() {
+        DataImportBatchMapper mapper = mock(DataImportBatchMapper.class);
+        when(mapper.selectPage(any(Page.class), any())).thenReturn(Page.of(1, 10));
+
+        PageResult<DataImportBatch> result = new DataImportBatchService(mapper).page(1, 10, null, null, null);
+
+        assertEquals(0, result.getTotal());
+        verify(mapper).selectPage(any(Page.class), any());
     }
 }
