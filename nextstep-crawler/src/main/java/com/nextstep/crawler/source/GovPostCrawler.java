@@ -9,6 +9,7 @@ import com.nextstep.crawler.entity.DataImportBatch;
 import com.nextstep.crawler.fetch.HttpFetcher;
 import com.nextstep.crawler.mapper.GovPostUpsertMapper;
 import com.nextstep.crawler.service.DataImportBatchService;
+import com.nextstep.crawler.service.DataSourceService;
 import com.nextstep.crawler.service.RawSnapshotStore;
 import com.nextstep.data.gov.entity.GovPost;
 import lombok.extern.slf4j.Slf4j;
@@ -41,19 +42,27 @@ public class GovPostCrawler implements SourceCrawler {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RawSnapshotStore snapshotStore;
     private final DataImportBatchService batchService;
+    private final DataSourceService dataSourceService;
 
     public GovPostCrawler(CrawlerProperties props, HttpFetcher fetcher, GovPostUpsertMapper govPostUpsertMapper) {
-        this(props, fetcher, govPostUpsertMapper, null, null);
+        this(props, fetcher, govPostUpsertMapper, null, null, null);
+    }
+
+    public GovPostCrawler(CrawlerProperties props, HttpFetcher fetcher, GovPostUpsertMapper govPostUpsertMapper,
+                          RawSnapshotStore snapshotStore, DataImportBatchService batchService) {
+        this(props, fetcher, govPostUpsertMapper, snapshotStore, batchService, null);
     }
 
     @Autowired
     public GovPostCrawler(CrawlerProperties props, HttpFetcher fetcher, GovPostUpsertMapper govPostUpsertMapper,
-                          RawSnapshotStore snapshotStore, DataImportBatchService batchService) {
+                          RawSnapshotStore snapshotStore, DataImportBatchService batchService,
+                          DataSourceService dataSourceService) {
         this.props = props;
         this.fetcher = fetcher;
         this.govPostUpsertMapper = govPostUpsertMapper;
         this.snapshotStore = snapshotStore;
         this.batchService = batchService;
+        this.dataSourceService = dataSourceService;
     }
 
     @Override
@@ -64,7 +73,9 @@ public class GovPostCrawler implements SourceCrawler {
     @Override
     public CrawlResult crawl() {
         CrawlResult result = new CrawlResult();
-        String body = fetcher.get(props.getGovPostUrl());
+        String sourceUrl = dataSourceService == null ? props.getGovPostUrl()
+                : dataSourceService.resolveUrl("GOV_POST", props.getGovPostUrl());
+        String body = fetcher.get(sourceUrl);
         if (body == null || body.isBlank()) {
             throw new BizException("国考岗位数据响应为空");
         }
@@ -72,7 +83,7 @@ public class GovPostCrawler implements SourceCrawler {
         byte[] content = body.getBytes(StandardCharsets.UTF_8);
         String hash = sha256(content);
         String snapshotPath = saveSnapshot(content, hash);
-        DataImportBatch batch = beginBatch(hash, snapshotPath);
+        DataImportBatch batch = beginBatch(hash, snapshotPath, sourceUrl);
         try {
             JsonNode root;
             try {
@@ -121,10 +132,10 @@ public class GovPostCrawler implements SourceCrawler {
         }
     }
 
-    private DataImportBatch beginBatch(String hash, String snapshotPath) {
+    private DataImportBatch beginBatch(String hash, String snapshotPath, String sourceUrl) {
         if (batchService == null) return null;
         DataImportBatch batch = batchService.createOrReuse("GOV_POST", props.getGovPostDataYear(), "sha256:" + hash, "v1");
-        if (snapshotPath != null) batchService.attachSnapshot(batch.getId(), props.getGovPostUrl(), snapshotPath);
+        if (snapshotPath != null) batchService.attachSnapshot(batch.getId(), sourceUrl, snapshotPath);
         if (!"PUBLISHED".equals(batch.getStatus()) && !"APPROVED".equals(batch.getStatus())) batchService.markRunning(batch.getId());
         return batch;
     }

@@ -6,7 +6,9 @@ import com.nextstep.common.core.PageResult;
 import com.nextstep.common.exception.BizException;
 import com.nextstep.crawler.dto.CrawlResult;
 import com.nextstep.crawler.entity.CrawlerJob;
+import com.nextstep.crawler.entity.DataSource;
 import com.nextstep.crawler.mapper.CrawlerJobMapper;
+import com.nextstep.crawler.mapper.DataSourceMapper;
 import com.nextstep.crawler.source.SourceCrawler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,11 +26,22 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class CrawlerService {
 
     private final CrawlerJobMapper crawlerJobMapper;
     private final List<SourceCrawler> crawlers;
+    private final DataSourceMapper dataSourceMapper;
+
+    public CrawlerService(CrawlerJobMapper crawlerJobMapper, List<SourceCrawler> crawlers) {
+        this(crawlerJobMapper, crawlers, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CrawlerService(CrawlerJobMapper crawlerJobMapper, List<SourceCrawler> crawlers, DataSourceMapper dataSourceMapper) {
+        this.crawlerJobMapper = crawlerJobMapper;
+        this.crawlers = crawlers;
+        this.dataSourceMapper = dataSourceMapper;
+    }
 
     private Map<String, SourceCrawler> index() {
         return crawlers.stream().collect(Collectors.toMap(SourceCrawler::source, Function.identity()));
@@ -44,6 +57,10 @@ public class CrawlerService {
         String normalizedSource = source == null ? "" : source.trim().toUpperCase();
         SourceCrawler crawler = index().get(normalizedSource);
         if (crawler == null) throw new BizException("未知数据源：" + source);
+        DataSource configuredSource = configuredSource(normalizedSource);
+        if (configuredSource != null && !Integer.valueOf(1).equals(configuredSource.getEnabled())) {
+            throw new BizException("数据源已停用：" + normalizedSource);
+        }
 
         CrawlerJob job = new CrawlerJob();
         job.setSource(normalizedSource);
@@ -62,6 +79,7 @@ public class CrawlerService {
             job.setSkipped(r.getSkipped());
             job.setStatus("SUCCESS");
             job.setMessage(r.summary());
+            markSourceSuccess(configuredSource);
         } catch (Exception e) {
             log.error("[crawler] {} 采集失败: {}", source, e.getMessage(), e);
             job.setStatus("FAILED");
@@ -71,6 +89,20 @@ public class CrawlerService {
             crawlerJobMapper.updateById(job);
         }
         return job;
+    }
+
+    private DataSource configuredSource(String crawlerSource) {
+        if (dataSourceMapper == null) return null;
+        String sourceCode = "KAOYAN".equals(crawlerSource) ? "KAOYAN_SCHOOL" : crawlerSource;
+        return dataSourceMapper.selectOne(new LambdaQueryWrapper<DataSource>()
+                .eq(DataSource::getSourceCode, sourceCode)
+                .last("LIMIT 1"));
+    }
+
+    private void markSourceSuccess(DataSource source) {
+        if (source == null || dataSourceMapper == null) return;
+        source.setLastSuccessAt(LocalDateTime.now());
+        dataSourceMapper.updateById(source);
     }
 
     /** 运行全部数据源（定时任务用） */

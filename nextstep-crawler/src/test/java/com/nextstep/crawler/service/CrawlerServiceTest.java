@@ -2,6 +2,8 @@ package com.nextstep.crawler.service;
 
 import com.nextstep.crawler.entity.CrawlerJob;
 import com.nextstep.crawler.mapper.CrawlerJobMapper;
+import com.nextstep.crawler.mapper.DataSourceMapper;
+import com.nextstep.crawler.entity.DataSource;
 import com.nextstep.crawler.source.SourceCrawler;
 import org.junit.jupiter.api.Test;
 
@@ -36,5 +38,22 @@ class CrawlerServiceTest {
         assertEquals("KAOYAN", job.getSource());
         assertNotNull(job.getFinishedAt());
         verify(mapper).updateById(job);
+    }
+
+    @Test
+    void refusesDisabledConfiguredSource() {
+        CrawlerJobMapper jobMapper = mock(CrawlerJobMapper.class);
+        DataSourceMapper sourceMapper = mock(DataSourceMapper.class);
+        SourceCrawler crawler = mock(SourceCrawler.class);
+        when(crawler.source()).thenReturn("KAOYAN");
+        DataSource source = new DataSource();
+        source.setSourceCode("KAOYAN_SCHOOL");
+        source.setEnabled(0);
+        when(sourceMapper.selectOne(any())).thenReturn(source);
+
+        CrawlerService service = new CrawlerService(jobMapper, List.of(crawler), sourceMapper);
+
+        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> service.run("KAOYAN", "MANUAL"));
+        verify(crawler, org.mockito.Mockito.never()).crawl();
     }
 }

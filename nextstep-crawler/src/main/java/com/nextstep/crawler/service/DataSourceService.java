@@ -22,6 +22,17 @@ public class DataSourceService {
         return mapper.selectList(new LambdaQueryWrapper<DataSource>().orderByAsc(DataSource::getSourceCode));
     }
 
+    public String resolveUrl(String sourceCode, String fallback) {
+        DataSource source = mapper.selectOne(new LambdaQueryWrapper<DataSource>()
+                .eq(DataSource::getSourceCode, sourceCode)
+                .last("LIMIT 1"));
+        if (source == null || !Integer.valueOf(1).equals(source.getEnabled())
+                || source.getSourceUrl() == null || source.getSourceUrl().isBlank()) {
+            return fallback;
+        }
+        return source.getSourceUrl().trim();
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public void update(Long id, String sourceUrl, Integer enabled, String parserVersion) {
         if (id == null || id < 1) throw new BizException("数据源 ID 非法");

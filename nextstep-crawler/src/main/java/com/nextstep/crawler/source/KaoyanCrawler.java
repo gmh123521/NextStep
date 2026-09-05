@@ -9,6 +9,7 @@ import com.nextstep.crawler.entity.DataImportBatch;
 import com.nextstep.crawler.fetch.HttpFetcher;
 import com.nextstep.crawler.mapper.SchoolUpsertMapper;
 import com.nextstep.crawler.service.DataImportBatchService;
+import com.nextstep.crawler.service.DataSourceService;
 import com.nextstep.crawler.service.RawSnapshotStore;
 import com.nextstep.data.school.entity.School;
 import lombok.extern.slf4j.Slf4j;
@@ -41,25 +42,32 @@ public class KaoyanCrawler implements SourceCrawler {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final RawSnapshotStore snapshotStore;
     private final DataImportBatchService batchService;
+    private final DataSourceService dataSourceService;
 
     public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper) {
-        this(props, fetcher, schoolUpsertMapper, null, null);
+        this(props, fetcher, schoolUpsertMapper, null, null, null);
     }
 
-    @Autowired
     public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper,
                          RawSnapshotStore snapshotStore) {
-        this(props, fetcher, schoolUpsertMapper, snapshotStore, null);
+        this(props, fetcher, schoolUpsertMapper, snapshotStore, null, null);
+    }
+
+    public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper,
+                         RawSnapshotStore snapshotStore, DataImportBatchService batchService) {
+        this(props, fetcher, schoolUpsertMapper, snapshotStore, batchService, null);
     }
 
     @Autowired
     public KaoyanCrawler(CrawlerProperties props, HttpFetcher fetcher, SchoolUpsertMapper schoolUpsertMapper,
-                         RawSnapshotStore snapshotStore, DataImportBatchService batchService) {
+                         RawSnapshotStore snapshotStore, DataImportBatchService batchService,
+                         DataSourceService dataSourceService) {
         this.props = props;
         this.fetcher = fetcher;
         this.schoolUpsertMapper = schoolUpsertMapper;
         this.snapshotStore = snapshotStore;
         this.batchService = batchService;
+        this.dataSourceService = dataSourceService;
     }
 
     @Override
@@ -70,14 +78,16 @@ public class KaoyanCrawler implements SourceCrawler {
     @Override
     public CrawlResult crawl() {
         CrawlResult result = new CrawlResult();
-        String body = fetcher.get(props.getKaoyanUrl());
+        String sourceUrl = dataSourceService == null ? props.getKaoyanUrl()
+                : dataSourceService.resolveUrl("KAOYAN_SCHOOL", props.getKaoyanUrl());
+        String body = fetcher.get(sourceUrl);
         if (body == null || body.isBlank()) {
             throw new BizException("研招院校数据响应为空");
         }
         byte[] content = body.getBytes(StandardCharsets.UTF_8);
         String hash = sha256(content);
         String snapshotPath = saveSnapshot(body, hash);
-        DataImportBatch batch = beginBatch(hash, snapshotPath);
+        DataImportBatch batch = beginBatch(hash, snapshotPath, sourceUrl);
 
         try {
             JsonNode root;
@@ -176,10 +186,10 @@ public class KaoyanCrawler implements SourceCrawler {
         }
     }
 
-    private DataImportBatch beginBatch(String hash, String snapshotPath) {
+    private DataImportBatch beginBatch(String hash, String snapshotPath, String sourceUrl) {
         if (batchService == null) return null;
         DataImportBatch batch = batchService.createOrReuse("KAOYAN_SCHOOL", props.getKaoyanDataYear(), "sha256:" + hash, "v1");
-        if (snapshotPath != null) batchService.attachSnapshot(batch.getId(), props.getKaoyanUrl(), snapshotPath);
+        if (snapshotPath != null) batchService.attachSnapshot(batch.getId(), sourceUrl, snapshotPath);
         if (!"PUBLISHED".equals(batch.getStatus()) && !"APPROVED".equals(batch.getStatus())) batchService.markRunning(batch.getId());
         return batch;
     }
