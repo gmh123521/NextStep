@@ -143,4 +143,80 @@ class DataImportBatchServiceTest {
 
         verify(rawMapper).delete(any());
     }
+
+    @Test
+    void publishesCatalogBatchFromNormalizedRawRecords() {
+        DataImportBatchMapper mapper = mock(DataImportBatchMapper.class);
+        DataRawRecordMapper rawMapper = mock(DataRawRecordMapper.class);
+        KaoyanPublishService publisher = mock(KaoyanPublishService.class);
+        DataImportBatch batch = new DataImportBatch();
+        batch.setId(13L);
+        batch.setSourceCode("KAOYAN_CATALOG");
+        batch.setStatus("APPROVED");
+        when(mapper.selectById(13L)).thenReturn(batch);
+
+        DataRawRecord raw = new DataRawRecord();
+        raw.setBatchId(13L);
+        raw.setRecordNo(1);
+        raw.setParseStatus("SUCCESS");
+        raw.setNormalizedPayload("[{\"schoolCode\":\"10001\",\"schoolName\":\"示例大学\",\"majorCode\":\"081000\",\"majorName\":\"软件工程\",\"degreeType\":\"ACADEMIC\",\"year\":2026}]");
+        when(rawMapper.selectList(any())).thenReturn(java.util.List.of(raw));
+
+        DataImportBatchService service = new DataImportBatchService(mapper, rawMapper, publisher);
+        service.publish(13L);
+
+        verify(publisher).publish(any(), eq(java.util.List.of()));
+        assertEquals("PUBLISHED", batch.getStatus());
+        verify(mapper).updateById(batch);
+    }
+
+    @Test
+    void rejectsPublishingCatalogBatchWithoutSchoolAssociation() {
+        DataImportBatchMapper mapper = mock(DataImportBatchMapper.class);
+        DataRawRecordMapper rawMapper = mock(DataRawRecordMapper.class);
+        KaoyanPublishService publisher = mock(KaoyanPublishService.class);
+        DataImportBatch batch = new DataImportBatch();
+        batch.setId(14L);
+        batch.setSourceCode("KAOYAN_CATALOG");
+        batch.setStatus("APPROVED");
+        when(mapper.selectById(14L)).thenReturn(batch);
+
+        DataRawRecord raw = new DataRawRecord();
+        raw.setBatchId(14L);
+        raw.setRecordNo(1);
+        raw.setParseStatus("SUCCESS");
+        raw.setNormalizedPayload("[{\"schoolCode\":null,\"schoolName\":null,\"majorCode\":\"081000\",\"majorName\":\"软件工程\",\"degreeType\":\"ACADEMIC\",\"year\":2026}]");
+        when(rawMapper.selectList(any())).thenReturn(java.util.List.of(raw));
+
+        DataImportBatchService service = new DataImportBatchService(mapper, rawMapper, publisher);
+
+        assertThrows(RuntimeException.class, () -> service.publish(14L));
+        verify(publisher, never()).publish(any(), any());
+        verify(mapper, never()).updateById(batch);
+    }
+
+    @Test
+    void rejectsPublishingCatalogBatchWhenStandardizedPayloadIsInvalid() {
+        DataImportBatchMapper mapper = mock(DataImportBatchMapper.class);
+        DataRawRecordMapper rawMapper = mock(DataRawRecordMapper.class);
+        KaoyanPublishService publisher = mock(KaoyanPublishService.class);
+        DataImportBatch batch = new DataImportBatch();
+        batch.setId(15L);
+        batch.setSourceCode("KAOYAN_CATALOG");
+        batch.setStatus("APPROVED");
+        when(mapper.selectById(15L)).thenReturn(batch);
+
+        DataRawRecord raw = new DataRawRecord();
+        raw.setBatchId(15L);
+        raw.setRecordNo(1);
+        raw.setParseStatus("SUCCESS");
+        raw.setNormalizedPayload("not-json");
+        when(rawMapper.selectList(any())).thenReturn(java.util.List.of(raw));
+
+        DataImportBatchService service = new DataImportBatchService(mapper, rawMapper, publisher);
+
+        assertThrows(RuntimeException.class, () -> service.publish(15L));
+        verify(publisher, never()).publish(any(), any());
+        verify(mapper, never()).updateById(batch);
+    }
 }

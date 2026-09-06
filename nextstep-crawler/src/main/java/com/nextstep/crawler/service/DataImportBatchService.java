@@ -8,11 +8,15 @@ import com.nextstep.crawler.entity.DataImportBatch;
 import com.nextstep.crawler.entity.DataRawRecord;
 import com.nextstep.crawler.mapper.DataImportBatchMapper;
 import com.nextstep.crawler.mapper.DataRawRecordMapper;
+import com.nextstep.crawler.dto.KaoyanCatalogRecord;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class DataImportBatchService {
@@ -21,15 +25,23 @@ public class DataImportBatchService {
     private static final int MAX_YEAR = 2100;
     private final DataImportBatchMapper mapper;
     private final DataRawRecordMapper rawRecordMapper;
+    private final KaoyanPublishService kaoyanPublishService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public DataImportBatchService(DataImportBatchMapper mapper) {
-        this(mapper, null);
+        this(mapper, null, null);
+    }
+
+    public DataImportBatchService(DataImportBatchMapper mapper, DataRawRecordMapper rawRecordMapper) {
+        this(mapper, rawRecordMapper, null);
     }
 
     @Autowired
-    public DataImportBatchService(DataImportBatchMapper mapper, DataRawRecordMapper rawRecordMapper) {
+    public DataImportBatchService(DataImportBatchMapper mapper, DataRawRecordMapper rawRecordMapper,
+                                  KaoyanPublishService kaoyanPublishService) {
         this.mapper = mapper;
         this.rawRecordMapper = rawRecordMapper;
+        this.kaoyanPublishService = kaoyanPublishService;
     }
 
     public DataImportBatch createOrReuse(String sourceCode, int dataYear, String contentHash, String parserVersion) {
@@ -175,9 +187,36 @@ public class DataImportBatchService {
     public void publish(Long id) {
         DataImportBatch batch = require(id);
         requireStatus(batch, "APPROVED", "只有审核通过的批次才能发布");
+        if ("KAOYAN_CATALOG".equals(batch.getSourceCode())) publishKaoyanCatalog(batch);
         batch.setStatus("PUBLISHED");
         batch.setPublishedAt(LocalDateTime.now());
         mapper.updateById(batch);
+    }
+
+    private void publishKaoyanCatalog(DataImportBatch batch) {
+        if (rawRecordMapper == null || kaoyanPublishService == null) {
+            throw new BizException("考研专业目录发布服务未配置");
+        }
+        List<DataRawRecord> rawRecords = rawRecordMapper.selectList(new LambdaQueryWrapper<DataRawRecord>()
+                .eq(DataRawRecord::getBatchId, batch.getId())
+                .eq(DataRawRecord::getParseStatus, "SUCCESS")
+                .orderByAsc(DataRawRecord::getRecordNo));
+        List<KaoyanCatalogRecord> catalogs = new java.util.ArrayList<>();
+        for (DataRawRecord raw : rawRecords) {
+            if (raw.getNormalizedPayload() == null || raw.getNormalizedPayload().isBlank()) continue;
+            try {
+                catalogs.addAll(objectMapper.readValue(raw.getNormalizedPayload(), new TypeReference<List<KaoyanCatalogRecord>>() {}));
+            } catch (Exception e) {
+                throw new BizException("考研专业目录标准化数据无法读取");
+            }
+        }
+        List<KaoyanCatalogRecord> publishable = catalogs.stream()
+                .filter(item -> item != null && item.schoolCode() != null && !item.schoolCode().isBlank()
+                        && item.majorCode() != null && !item.majorCode().isBlank()
+                        && item.majorName() != null && !item.majorName().isBlank())
+                .toList();
+        if (publishable.isEmpty()) throw new BizException("考研专业目录没有可关联院校的记录，暂不能发布");
+        kaoyanPublishService.publish(publishable, List.of());
     }
 
     @Transactional(rollbackFor = Exception.class)
