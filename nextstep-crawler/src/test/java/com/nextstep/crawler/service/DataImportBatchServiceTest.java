@@ -3,8 +3,12 @@ package com.nextstep.crawler.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nextstep.common.core.PageResult;
 import com.nextstep.crawler.entity.DataImportBatch;
+import com.nextstep.crawler.entity.DataRawRecord;
 import com.nextstep.crawler.mapper.DataImportBatchMapper;
+import com.nextstep.crawler.mapper.DataRawRecordMapper;
 import org.junit.jupiter.api.Test;
+
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -115,5 +119,28 @@ class DataImportBatchServiceTest {
 
         assertEquals(0, result.getTotal());
         verify(mapper).selectPage(any(Page.class), any());
+    }
+
+    @Test
+    void savesRawImportPage() {
+        DataImportBatchMapper mapper = mock(DataImportBatchMapper.class);
+        DataRawRecordMapper rawMapper = mock(DataRawRecordMapper.class);
+
+        new DataImportBatchService(mapper, rawMapper)
+                .saveRawRecord(12L, 1, "{\"msg\":{}}", "[]", "sha256:page", "SUCCESS", null);
+
+        ArgumentCaptor<DataRawRecord> captor = ArgumentCaptor.forClass(DataRawRecord.class);
+        verify(rawMapper).insert(captor.capture());
+        assertEquals("[]", captor.getValue().getNormalizedPayload());
+    }
+
+    @Test
+    void clearsRawImportPagesBeforeReplay() {
+        DataImportBatchMapper mapper = mock(DataImportBatchMapper.class);
+        DataRawRecordMapper rawMapper = mock(DataRawRecordMapper.class);
+
+        new DataImportBatchService(mapper, rawMapper).clearRawRecords(12L);
+
+        verify(rawMapper).delete(any());
     }
 }

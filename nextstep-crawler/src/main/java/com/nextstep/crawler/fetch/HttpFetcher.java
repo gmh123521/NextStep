@@ -4,11 +4,15 @@ import com.nextstep.crawler.config.CrawlerProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.http.MediaType;
+import org.springframework.util.MultiValueMap;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -55,12 +59,48 @@ public class HttpFetcher {
         }
     }
 
+    /** 阻塞式表单 POST；与 GET 使用相同的限速、UA、超时和一次重试策略。 */
+    public String postForm(String url, MultiValueMap<String, String> form) {
+        return postForm(url, form, Map.of());
+    }
+
+    /** 表单 POST，可追加来源站点要求的请求头。 */
+    public String postForm(String url, MultiValueMap<String, String> form, Map<String, String> headers) {
+        if (url == null || url.isBlank()) throw new IllegalArgumentException("采集地址不能为空");
+        if (form == null) throw new IllegalArgumentException("表单参数不能为空");
+        if (props.getRateLimitMs() < 0) throw new IllegalStateException("采集限速不能为负数");
+        rateLimit();
+        try {
+            return doPostForm(url, form, headers);
+        } catch (Exception e) {
+            log.warn("[crawler] 表单抓取失败，重试一次: {} -> {}", url, e.getMessage());
+            rateLimit();
+            return doPostForm(url, form, headers);
+        }
+    }
+
     private String doGet(String url) {
         return client().get()
                 .uri(url)
                 .header("User-Agent", nextUa())
                 .header("Accept", "application/json, text/plain, */*")
                 .header("Accept-Language", "zh-CN,zh;q=0.9")
+                .retrieve()
+                .bodyToMono(String.class)
+                .block(Duration.ofSeconds(props.getTimeoutSeconds() + 5L));
+    }
+
+    private String doPostForm(String url, MultiValueMap<String, String> form, Map<String, String> headers) {
+        return client().post()
+                .uri(url)
+                .headers(httpHeaders -> {
+                    httpHeaders.set("User-Agent", nextUa());
+                    httpHeaders.set("Accept", "application/json, text/plain, */*");
+                    httpHeaders.set("Accept-Language", "zh-CN,zh;q=0.9");
+                    headers.forEach(httpHeaders::set);
+                })
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(BodyInserters.fromFormData(form))
                 .retrieve()
                 .bodyToMono(String.class)
                 .block(Duration.ofSeconds(props.getTimeoutSeconds() + 5L));

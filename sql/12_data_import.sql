@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS `ns_data_raw_record` (
   `batch_id`        BIGINT       NOT NULL,
   `record_no`       INT          NOT NULL,
   `raw_payload`     LONGTEXT     NOT NULL,
+  `normalized_payload` LONGTEXT           DEFAULT NULL COMMENT '解析后的标准化 JSON',
   `payload_hash`    VARCHAR(128)          DEFAULT NULL,
   `parse_status`    VARCHAR(16)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING/SUCCESS/FAILED/SKIPPED',
   `error_message`   VARCHAR(500)          DEFAULT NULL,

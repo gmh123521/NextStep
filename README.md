@@ -342,6 +342,7 @@ docker-compose up -d
 | `CRAWLER_KAOYAN_DATA_YEAR` | `2026` | 考研招生单位数据年份 |
 | `CRAWLER_GOV_POST_DATA_YEAR` | `2026` | 国考职位数据年份 |
 | `CRAWLER_KAOYAN_URL` | 研招网默认地址 | 考研数据接口，可在管理员数据源配置中覆盖 |
+| `CRAWLER_KAOYAN_CATALOG_URL` | `https://yz.chsi.com.cn/zsml/rs/zys.do` | 研招网专业目录 POST 接口 |
 | `CRAWLER_GOV_POST_URL` | 国家公务员局默认地址 | 国考职位接口，可在管理员数据源配置中覆盖 |
 
 原始采集快照默认保存到 `data/crawler-raw`，Docker 部署时会挂载为持久化卷。首次联调可运行：

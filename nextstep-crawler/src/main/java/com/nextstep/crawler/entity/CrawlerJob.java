@@ -19,7 +19,7 @@ public class CrawlerJob implements Serializable {
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 数据源：KAOYAN / GOV_POST */
+    /** 数据源：KAOYAN / KAOYAN_CATALOG / GOV_POST */
     private String source;
 
     /** SCHEDULE / MANUAL */

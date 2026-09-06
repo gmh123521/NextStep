@@ -19,6 +19,7 @@ public class DataRawRecord implements Serializable {
     private Long batchId;
     private Integer recordNo;
     private String rawPayload;
+    private String normalizedPayload;
     private String payloadHash;
     private String parseStatus;
     private String errorMessage;

@@ -43,6 +43,27 @@ class KaoyanCatalogParserTest {
     }
 
     @Test
+    void parsesChsiRealResponseUnderMsgList() {
+        KaoyanCatalogParser.ParseResult result = parser.parse("""
+                {
+                  "zsmlcxModel":{"zydm":"081200","zymc":"计算机科学与技术","start":"0"},
+                  "msg":{"curPage":1,"nextPageAvailable":false,"pageCount":10,"totalCount":1,
+                    "list":[{"zydm":"081200","zymc":"计算机科学与技术","mldm":"08",
+                      "mlmc":"工学","yjxkdm":"0812","yjxkmc":"计算机科学与技术",
+                      "xwlx":"xs","xwlxmc":"学术学位"}]},
+                  "flag":true,"invokeStatus":"SUCCESS"
+                }
+                """);
+
+        assertEquals(1, result.records().size());
+        assertEquals("081200", result.records().get(0).majorCode());
+        assertEquals("计算机科学与技术", result.records().get(0).majorName());
+        assertEquals("工学", result.records().get(0).category());
+        assertEquals("ACADEMIC", result.records().get(0).degreeType());
+        assertTrue(result.errors().get(0).contains("待关联院校"));
+    }
+
+    @Test
     void rejectsBlankOrInvalidPayload() {
         assertTrue(parser.parse(" ").records().isEmpty());
         assertTrue(parser.parse("not-json").errors().get(0).contains("JSON"));

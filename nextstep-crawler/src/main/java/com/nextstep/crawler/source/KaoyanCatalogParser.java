@@ -17,6 +17,10 @@ public class KaoyanCatalogParser {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ParseResult parse(String body) {
+        return parse(body, 0);
+    }
+
+    public ParseResult parse(String body, int defaultYear) {
         if (body == null || body.isBlank()) return new ParseResult(List.of(), List.of());
 
         JsonNode root;
@@ -38,31 +42,57 @@ public class KaoyanCatalogParser {
             String schoolName = text(row, "schoolName", "dwmc", "yxmc", "name");
             String majorCode = text(row, "majorCode", "major_code", "zydm");
             String majorName = text(row, "majorName", "major_name", "zymc");
-            if (schoolCode == null || schoolName == null || majorCode == null || majorName == null) {
+            if (majorCode == null || majorName == null) {
                 errors.add("第 " + index + " 条缺少院校代码或专业代码/名称");
                 continue;
+            }
+            if (schoolCode == null || schoolName == null) {
+                errors.add("第 " + index + " 条待关联院校：缺少院校代码或名称");
             }
             records.add(new KaoyanCatalogRecord(
                     schoolCode,
                     schoolName,
-                    text(row, "province", "ssmc", "sf"),
-                    text(row, "city", "cs"),
+                    text(row, "province", "ssmc", "szss", "sf"),
+                    text(row, "city", "szcs", "cs"),
                     majorCode,
                     majorName,
-                    text(row, "category", "xkml", "discipline"),
-                    normalizeDegree(text(row, "degreeType", "degree_type", "degree")),
+                    text(row, "category", "mlmc", "xkml", "discipline"),
+                    normalizeDegree(text(row, "degreeType", "degree_type", "degree", "xwlxmc", "xwlx")),
                     subjects(row),
-                    row.path("year").asInt(row.path("dataYear").asInt(row.path("nd").asInt(0)))
+                    row.path("year").asInt(row.path("dataYear").asInt(row.path("nd").asInt(defaultYear)))
             ));
         }
-        return new ParseResult(records, errors);
+        return new ParseResult(records, errors, index);
+    }
+
+    public boolean nextPageAvailable(String body) {
+        if (body == null || body.isBlank()) return false;
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            return root.path("msg").path("nextPageAvailable").asBoolean(false);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public boolean successful(String body) {
+        if (body == null || body.isBlank()) return false;
+        try {
+            JsonNode root = objectMapper.readTree(body);
+            JsonNode status = root.get("invokeStatus");
+            JsonNode flag = root.get("flag");
+            return (status == null || "SUCCESS".equalsIgnoreCase(status.asText()))
+                    && (flag == null || flag.asBoolean());
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private JsonNode firstArray(JsonNode node) {
         if (node == null) return null;
         if (node.isArray()) return node;
         if (!node.isObject()) return null;
-        for (String key : List.of("data", "rows", "list", "yxList", "ssList", "majors")) {
+        for (String key : List.of("msg", "data", "rows", "list", "yxList", "ssList", "majors")) {
             JsonNode child = node.get(key);
             if (child != null) {
                 JsonNode result = firstArray(child);
@@ -119,6 +149,9 @@ public class KaoyanCatalogParser {
         return result.isBlank() ? null : result;
     }
 
-    public record ParseResult(List<KaoyanCatalogRecord> records, List<String> errors) {
+    public record ParseResult(List<KaoyanCatalogRecord> records, List<String> errors, int rowCount) {
+        public ParseResult(List<KaoyanCatalogRecord> records, List<String> errors) {
+            this(records, errors, records.size() + errors.size());
+        }
     }
 }

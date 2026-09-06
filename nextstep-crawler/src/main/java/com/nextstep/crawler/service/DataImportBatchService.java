@@ -69,6 +69,34 @@ public class DataImportBatchService {
         mapper.updateById(batch);
     }
 
+    public void saveRawRecord(Long batchId, int recordNo, String payload, String payloadHash,
+                              String parseStatus, String errorMessage) {
+        saveRawRecord(batchId, recordNo, payload, null, payloadHash, parseStatus, errorMessage);
+    }
+
+    public void saveRawRecord(Long batchId, int recordNo, String payload, String normalizedPayload,
+                              String payloadHash, String parseStatus, String errorMessage) {
+        if (rawRecordMapper == null) throw new BizException("原始记录写入未配置");
+        if (batchId == null || batchId < 1) throw new BizException("导入批次 ID 非法");
+        if (recordNo < 1) throw new BizException("原始记录序号非法");
+        if (payload == null || payload.isBlank()) throw new BizException("原始记录内容不能为空");
+        DataRawRecord record = new DataRawRecord();
+        record.setBatchId(batchId);
+        record.setRecordNo(recordNo);
+        record.setRawPayload(payload);
+        record.setNormalizedPayload(normalizedPayload);
+        record.setPayloadHash(payloadHash);
+        record.setParseStatus(parseStatus == null || parseStatus.isBlank() ? "PENDING" : parseStatus);
+        record.setErrorMessage(errorMessage == null ? null : truncate(errorMessage));
+        rawRecordMapper.insert(record);
+    }
+
+    public void clearRawRecords(Long batchId) {
+        if (rawRecordMapper == null) throw new BizException("原始记录写入未配置");
+        if (batchId == null || batchId < 1) throw new BizException("导入批次 ID 非法");
+        rawRecordMapper.delete(new LambdaQueryWrapper<DataRawRecord>().eq(DataRawRecord::getBatchId, batchId));
+    }
+
     public void markRunning(Long id) {
         DataImportBatch batch = require(id);
         batch.setStatus("RUNNING");
