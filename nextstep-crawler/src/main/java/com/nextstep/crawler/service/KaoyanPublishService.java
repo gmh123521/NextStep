@@ -5,9 +5,11 @@ import com.nextstep.crawler.dto.KaoyanCatalogRecord;
 import com.nextstep.crawler.dto.KaoyanEnrollmentRecord;
 import com.nextstep.crawler.mapper.SchoolEnrollUpsertMapper;
 import com.nextstep.crawler.mapper.SchoolMajorUpsertMapper;
+import com.nextstep.crawler.mapper.SchoolUpsertMapper;
 import com.nextstep.data.school.entity.SchoolEnroll;
 import com.nextstep.data.school.entity.SchoolMajor;
-import lombok.RequiredArgsConstructor;
+import com.nextstep.data.school.entity.School;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,11 +17,23 @@ import java.util.List;
 import java.util.Arrays;
 
 @Service
-@RequiredArgsConstructor
 public class KaoyanPublishService {
 
     private final SchoolMajorUpsertMapper majorMapper;
     private final SchoolEnrollUpsertMapper enrollMapper;
+    private final SchoolUpsertMapper schoolMapper;
+
+    public KaoyanPublishService(SchoolMajorUpsertMapper majorMapper, SchoolEnrollUpsertMapper enrollMapper) {
+        this(majorMapper, enrollMapper, null);
+    }
+
+    @Autowired
+    public KaoyanPublishService(SchoolMajorUpsertMapper majorMapper, SchoolEnrollUpsertMapper enrollMapper,
+                                SchoolUpsertMapper schoolMapper) {
+        this.majorMapper = majorMapper;
+        this.enrollMapper = enrollMapper;
+        this.schoolMapper = schoolMapper;
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public void publish(List<KaoyanCatalogRecord> catalogs, List<KaoyanEnrollmentRecord> enrollments) {
@@ -79,6 +93,17 @@ public class KaoyanPublishService {
             throw new BizException("考研专业目录缺少年份或年份非法");
         }
         Long schoolId = majorMapper.findSchoolIdByCode(catalog.schoolCode());
+        if (schoolId == null && schoolMapper != null && !blank(catalog.schoolName())) {
+            School school = new School();
+            school.setCode(catalog.schoolCode());
+            school.setName(catalog.schoolName());
+            school.setProvince(catalog.province());
+            school.setCity(catalog.city());
+            school.setLevel("REGULAR");
+            school.setIsSelfMarking(0);
+            schoolMapper.insertIgnore(school);
+            schoolId = majorMapper.findSchoolIdByCode(catalog.schoolCode());
+        }
         if (schoolId == null) throw new BizException("找不到对应院校：" + catalog.schoolCode());
         SchoolMajor entity = new SchoolMajor();
         entity.setSchoolId(schoolId);

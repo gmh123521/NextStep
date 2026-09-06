@@ -5,6 +5,7 @@ import com.nextstep.crawler.dto.KaoyanCatalogRecord;
 import com.nextstep.crawler.dto.KaoyanEnrollmentRecord;
 import com.nextstep.crawler.mapper.SchoolEnrollUpsertMapper;
 import com.nextstep.crawler.mapper.SchoolMajorUpsertMapper;
+import com.nextstep.crawler.mapper.SchoolUpsertMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -58,5 +59,23 @@ class KaoyanPublishServiceTest {
         verify(majorMapper).findSchoolIdByCode(eq("10001"));
         verify(majorMapper).upsert(any());
         verify(enrollMapper).upsert(any());
+    }
+
+    @Test
+    void upsertsSchoolBeforePublishingCatalogWhenSchoolDetailsArePresent() {
+        SchoolMajorUpsertMapper majorMapper = mock(SchoolMajorUpsertMapper.class);
+        SchoolEnrollUpsertMapper enrollMapper = mock(SchoolEnrollUpsertMapper.class);
+        SchoolUpsertMapper schoolMapper = mock(SchoolUpsertMapper.class);
+        when(majorMapper.findSchoolIdByCode("10002")).thenReturn(null, 12L);
+        when(majorMapper.upsert(any())).thenReturn(1);
+        KaoyanPublishService service = new KaoyanPublishService(majorMapper, enrollMapper, schoolMapper);
+
+        KaoyanCatalogRecord catalog = new KaoyanCatalogRecord(
+                "10002", "测试大学", "北京市", "北京", "081200", "计算机科学与技术", "工学", "ACADEMIC", List.of(), 2026);
+
+        service.publish(List.of(catalog), List.of());
+
+        verify(schoolMapper).insertIgnore(any());
+        verify(majorMapper).upsert(any());
     }
 }
